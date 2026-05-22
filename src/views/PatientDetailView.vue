@@ -412,19 +412,32 @@ async function openReport(row) {
   }
 }
 
-const reportReadonly = computed(() => Number(currentAssessmentState.value) === 1 || Number(reportMeta.value.state) === 2);
+const reportReadonly = computed(() => isAssessmentSubmitted(currentAssessmentState.value) || isReportSubmitted(reportMeta.value));
 const reportSaveDisabled = computed(() => isReadOnlyMode || reportReadonly.value);
 const reportDisabledReason = computed(() =>
   isReadOnlyMode ? writeDisabledMessage : '该评估已提交，当前按只读方式查看，避免覆盖正式结果。',
 );
-const baseReadonly = computed(() => isReadOnlyMode || Number(baseAssessmentState.value) === 1 || Boolean(baseAssociationWarning.value));
+const baseReadonly = computed(() => isReadOnlyMode || isAssessmentSubmitted(baseAssessmentState.value) || Boolean(baseAssociationWarning.value));
 const baseSaveDisabled = computed(() => baseReadonly.value);
 const baseDisabledReason = computed(() => {
   if (isReadOnlyMode) return writeDisabledMessage;
-  if (Number(baseAssessmentState.value) === 1) return '该评估已提交，一般情况表当前按只读方式查看。';
+  if (isAssessmentSubmitted(baseAssessmentState.value)) return '该评估已提交，一般情况表当前按只读方式查看。';
   if (baseAssociationWarning.value) return baseAssociationWarning.value;
   return '';
 });
+
+function isAssessmentSubmitted(state) {
+  return Number(state) === 1;
+}
+
+function isReportSubmitted(report = {}) {
+  return [report.state, report.reportState, report.status, report.finishState].some((value) => Number(value) === 2);
+}
+
+function findAssessmentById(list = [], outpatientId) {
+  if (!outpatientId) return null;
+  return (list || []).find((item) => Number(item.id) === Number(outpatientId)) || null;
+}
 
 function normalizeQuestions(list) {
   return (list || []).map((item, index) => {
@@ -496,7 +509,7 @@ async function saveReport() {
 
 async function verifyReportWritable() {
   if (!currentOutpatientId.value) return true;
-  const result = await getAssessmentTables(currentOutpatientId.value);
+  const [result, freshPatient] = await Promise.all([getAssessmentTables(currentOutpatientId.value), getPatient(props.id)]);
   const list = result.list || [];
   const fresh = list.find(
     (item) =>
@@ -504,11 +517,13 @@ async function verifyReportWritable() {
       Number(item.reportId) === Number(reportMeta.value.id) ||
       Number(item.checkTableId) === Number(reportMeta.value.checkTableId),
   );
-  const assessmentState = result.state ?? result.outpatientState ?? currentAssessmentState.value;
+  const freshAssessment = findAssessmentById(freshPatient?.checkList, currentOutpatientId.value);
+  const assessmentState = freshAssessment?.state ?? result.state ?? result.outpatientState ?? currentAssessmentState.value;
   const tableState = fresh?.state ?? fresh?.reportState ?? reportMeta.value.state;
   currentAssessmentState.value = assessmentState;
   if (fresh) reportMeta.value = { ...reportMeta.value, ...mapTable(fresh) };
-  if (Number(assessmentState) === 1 || Number(tableState) === 2) {
+  if (freshPatient) patient.value = freshPatient;
+  if (isAssessmentSubmitted(assessmentState) || isReportSubmitted({ state: tableState })) {
     ElMessage.warning('评估已提交，禁止保存量表。');
     return false;
   }
@@ -685,6 +700,32 @@ function printPreview() {
   window.print();
 }
 
+async function verifyBaseWritable() {
+  const outpatientId = baseOutpatientId.value || baseForm.outpatientId;
+  const [freshPatient, freshBase] = await Promise.all([
+    getPatient(props.id),
+    getBase(props.id).catch(() => null),
+  ]);
+  if (freshPatient) patient.value = freshPatient;
+  const freshAssessment = findAssessmentById(freshPatient?.checkList, outpatientId);
+  if (freshAssessment) baseAssessmentState.value = freshAssessment.state;
+  if (isAssessmentSubmitted(baseAssessmentState.value)) {
+    ElMessage.warning('评估已提交，禁止保存一般情况表。');
+    return false;
+  }
+  if (freshBase?.id && outpatientId && !freshBase?.outpatientId) {
+    baseAssociationWarning.value = '后端仅按患者返回一般情况表，无法确认该记录是否属于当前评估，已禁止保存以避免误更新。';
+    ElMessage.warning(baseAssociationWarning.value);
+    return false;
+  }
+  if (freshBase?.id && outpatientId && Number(freshBase.outpatientId) !== Number(outpatientId)) {
+    baseAssociationWarning.value = '当前一般情况表记录归属的评估与所选评估不一致，已禁止保存以避免误更新。';
+    ElMessage.warning(baseAssociationWarning.value);
+    return false;
+  }
+  return true;
+}
+
 async function saveBaseForm() {
   if (baseSaveDisabled.value) {
     ElMessage.warning(baseDisabledReason.value);
@@ -696,6 +737,8 @@ async function saveBaseForm() {
   }
   baseSaving.value = true;
   try {
+    const freshWritable = await verifyBaseWritable();
+    if (!freshWritable) return;
     const msList = normalizeMsList(baseForm.msList).filter(
       (item) => item.medication || item.dose || item.frequency || item.way,
     );
@@ -716,7 +759,9 @@ async function saveBaseForm() {
       fallHistory: toNumberOrNull(baseForm.fallHistory),
       isBowelProblem: toNumberOrNull(baseForm.isBowelProblem),
     }, { keepEmpty: Boolean(baseForm.id) });
-    payload.msList = msList;
+    if (msList.length) {
+      payload.msList = msList;
+    }
     await saveBase(payload);
     ElMessage.success('一般情况已保存');
     baseOpen.value = false;

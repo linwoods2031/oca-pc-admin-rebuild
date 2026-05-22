@@ -8,7 +8,7 @@ import PatientDetailView from './views/PatientDetailView.vue';
 import PatientFormView from './views/PatientFormView.vue';
 
 export const router = createRouter({
-  history: createWebHistory(),
+  history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
     { path: '/login', component: LoginView },
     {

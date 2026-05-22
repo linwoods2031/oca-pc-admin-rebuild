@@ -2,6 +2,7 @@ import axios from 'axios';
 import { ElMessage } from 'element-plus';
 import { clearSession, getToken } from '../session.js';
 import { router } from '../router.js';
+import { isReadOnlyMode, writeDisabledMessage } from '../config/runtime.js';
 
 export const api = axios.create({
   baseURL: '/prod-api',
@@ -9,6 +10,13 @@ export const api = axios.create({
 });
 
 api.interceptors.request.use((config) => {
+  const method = (config.method || 'get').toLowerCase();
+  const url = String(config.url || '');
+  const isWrite = ['post', 'put', 'patch', 'delete'].includes(method);
+  const isLogin = method === 'post' && url === '/login';
+  if (isReadOnlyMode && isWrite && !isLogin) {
+    return Promise.reject(new Error(writeDisabledMessage));
+  }
   const token = getToken();
   if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;

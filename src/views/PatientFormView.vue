@@ -5,10 +5,22 @@
         <el-button link @click="cancel">返回</el-button>
         <h2>{{ isEdit ? '编辑患者' : '新增患者' }}</h2>
       </div>
-      <el-button type="primary" :loading="saving" @click="submit">保存</el-button>
+      <el-tooltip :disabled="!isReadOnlyMode" :content="writeDisabledMessage" placement="top">
+        <span>
+          <el-button type="primary" :disabled="isReadOnlyMode" :loading="saving" @click="submit">保存</el-button>
+        </span>
+      </el-tooltip>
     </div>
 
-    <el-form ref="formRef" :model="form" :rules="rules" label-position="top" class="patient-form">
+    <el-alert
+      v-if="isReadOnlyMode"
+      type="warning"
+      :closable="false"
+      :title="writeDisabledMessage"
+      style="margin-top: 14px"
+    />
+
+    <el-form ref="formRef" :model="form" :rules="rules" label-position="top" class="patient-form" :disabled="isReadOnlyMode">
       <el-form-item label="姓名" prop="name">
         <el-input v-model.trim="form.name" maxlength="30" placeholder="请输入姓名" />
       </el-form-item>
@@ -63,7 +75,9 @@ import dayjs from 'dayjs';
 import { computed, onMounted, reactive, ref } from 'vue';
 import { ElMessage } from 'element-plus';
 import { useRouter } from 'vue-router';
-import { addPatient, getPatient, updatePatient } from '../api/oca.js';
+import { addPatient, getInfo, getPatient, updatePatient } from '../api/oca.js';
+import { isReadOnlyMode, writeDisabledMessage } from '../config/runtime.js';
+import { getUser } from '../session.js';
 
 const props = defineProps({ id: { type: String, default: '' } });
 const router = useRouter();
@@ -73,7 +87,7 @@ const saving = ref(false);
 const formRef = ref(null);
 const original = ref({});
 const initialForm = ref({});
-const fixedArchiveOwner = { deptId: 103, hospitalId: 100, attendingDoctor: 1 };
+const ownerDefaults = ref({});
 
 const form = reactive({
   name: '',
@@ -129,13 +143,42 @@ function fillForm(patient) {
   initialForm.value = { ...nextForm };
 }
 
-function compact(payload) {
+function firstDefined(...values) {
+  return values.find((value) => value !== undefined && value !== null && value !== '');
+}
+
+function compact(payload, { keepEmpty = false } = {}) {
   return Object.fromEntries(
-    Object.entries(payload).filter(([, value]) => value !== '' && value !== null && value !== undefined),
+    Object.entries(payload).filter(([, value]) => (keepEmpty ? value !== undefined : value !== '' && value !== null && value !== undefined)),
   );
 }
 
+function inferArchiveOwner(source = {}) {
+  const user = source.user || source;
+  const dept = source.dept || user.dept || (Array.isArray(source.depts) ? source.depts[0] : null);
+  return compact({
+    deptId: firstDefined(user.deptId, dept?.deptId, dept?.id),
+    hospitalId: firstDefined(user.hospitalId, dept?.hospitalId, source.hospitalId),
+    attendingDoctor: firstDefined(user.attendingDoctor, user.userId, user.id),
+  });
+}
+
+async function loadOwnerDefaults() {
+  if (isEdit.value || isReadOnlyMode) return;
+  try {
+    const info = await getInfo();
+    ownerDefaults.value = inferArchiveOwner(info);
+  } catch {
+    ownerDefaults.value = inferArchiveOwner(getUser());
+  }
+}
+
 function buildPayload() {
+  const owner = {
+    deptId: firstDefined(original.value.deptId, ownerDefaults.value.deptId),
+    hospitalId: firstDefined(original.value.hospitalId, ownerDefaults.value.hospitalId),
+    attendingDoctor: firstDefined(original.value.attendingDoctor, ownerDefaults.value.attendingDoctor),
+  };
   const payload = compact({
     id: props.id ? Number(props.id) : undefined,
     name: form.name,
@@ -146,26 +189,22 @@ function buildPayload() {
     patientNumber: form.patientNumber,
     admissionNumber: form.admissionNumber,
     homeAddress: form.homeAddress,
-    deptId: original.value.deptId ?? fixedArchiveOwner.deptId,
-    hospitalId: original.value.hospitalId ?? fixedArchiveOwner.hospitalId,
-    attendingDoctor: original.value.attendingDoctor ?? fixedArchiveOwner.attendingDoctor,
+    deptId: owner.deptId,
+    hospitalId: owner.hospitalId,
+    attendingDoctor: owner.attendingDoctor,
     guardianList: [
       compact({
         id: original.value.guardianList?.[0]?.id,
         patientId: original.value.guardianList?.[0]?.patientId ?? (props.id ? Number(props.id) : undefined),
         name: form.guardianName,
         phone: form.guardianPhone,
-      }),
+      }, { keepEmpty: isEdit.value }),
     ],
-  });
+  }, { keepEmpty: isEdit.value });
 
-  if (!isEdit.value || form.sickroomNumber !== initialForm.value.sickroomNumber) {
-    payload.sickroomNumber = form.sickroomNumber;
-  }
-  if (!isEdit.value || form.sickbedNumber !== initialForm.value.sickbedNumber) {
-    payload.sickbedNumber = form.sickbedNumber;
-  }
-  return compact(payload);
+  payload.sickroomNumber = form.sickroomNumber;
+  payload.sickbedNumber = form.sickbedNumber;
+  return compact(payload, { keepEmpty: isEdit.value });
 }
 
 async function load() {
@@ -190,11 +229,19 @@ function cancel() {
 }
 
 async function submit() {
+  if (isReadOnlyMode) {
+    ElMessage.warning(writeDisabledMessage);
+    return;
+  }
   const valid = await formRef.value?.validate().catch(() => false);
   if (!valid) return;
   saving.value = true;
   try {
     const payload = buildPayload();
+    if (!isEdit.value && (!payload.deptId || !payload.hospitalId || !payload.attendingDoctor)) {
+      ElMessage.error('无法从当前用户信息推导患者归属，已停止新增；请先由后端确认归属字段。');
+      return;
+    }
     const result = isEdit.value ? await updatePatient(payload) : await addPatient(payload);
     ElMessage.success(isEdit.value ? '患者已更新' : '患者已新增');
     const targetId = props.id || (typeof result === 'number' || typeof result === 'string' ? result : result?.id);
@@ -206,5 +253,7 @@ async function submit() {
   }
 }
 
-onMounted(load);
+onMounted(async () => {
+  await Promise.all([load(), loadOwnerDefaults()]);
+});
 </script>

@@ -5,7 +5,11 @@
         <el-button link @click="$router.back()">返回</el-button>
         <div>
           <el-button @click="openBase(checks[0] || {})">一般情况表</el-button>
-          <el-button type="primary" @click="$router.push(`/patients/${props.id}/edit`)">编辑患者</el-button>
+          <el-tooltip :disabled="!isReadOnlyMode" :content="writeDisabledMessage" placement="top">
+            <span>
+              <el-button type="primary" :disabled="isReadOnlyMode" @click="$router.push(`/patients/${props.id}/edit`)">编辑患者</el-button>
+            </span>
+          </el-tooltip>
         </div>
       </div>
       <div class="metric-grid" style="margin-top: 14px">
@@ -65,8 +69,8 @@
     <el-dialog v-model="reportOpen" :title="reportTitle" width="980px">
       <section v-loading="reportLoading" class="question-editor">
         <el-alert
-          v-if="reportReadonly"
-          title="该评估已提交，当前按只读方式查看，避免覆盖正式结果。"
+          v-if="reportSaveDisabled"
+          :title="reportDisabledReason"
           type="info"
           :closable="false"
           style="margin-bottom: 12px"
@@ -77,7 +81,7 @@
           <el-radio-group
             v-if="Number(row.type) === 0"
             v-model="row.selectedOptionId"
-            :disabled="reportReadonly"
+            :disabled="reportSaveDisabled"
             class="question-options"
           >
             <el-radio v-for="option in row.options || []" :key="option.id" :value="option.id" border>
@@ -88,13 +92,13 @@
           <el-input
             v-else-if="Number(row.type) === 2"
             v-model.trim="row.inputValue"
-            :disabled="reportReadonly"
+            :disabled="reportSaveDisabled"
             placeholder="请输入"
           />
           <el-input
             v-else
             v-model.trim="row.inputValue"
-            :disabled="reportReadonly"
+            :disabled="reportSaveDisabled"
             type="textarea"
             :rows="3"
             placeholder="请输入"
@@ -105,13 +109,20 @@
       <template #footer>
         <span class="dialog-footer">
           <el-button @click="reportOpen = false">关闭</el-button>
-          <el-button type="primary" :disabled="reportReadonly" :loading="reportSaving" @click="saveReport">保存量表</el-button>
+          <el-button type="primary" :disabled="reportSaveDisabled" :loading="reportSaving" @click="saveReport">保存量表</el-button>
         </span>
       </template>
     </el-dialog>
 
     <el-dialog v-model="baseOpen" title="一般情况调查表" width="1120px">
       <section v-loading="baseLoading">
+        <el-alert
+          v-if="baseSaveDisabled"
+          type="warning"
+          :closable="false"
+          :title="baseDisabledReason"
+          style="margin-bottom: 12px"
+        />
         <el-descriptions :column="4" border style="margin-bottom: 18px">
           <el-descriptions-item label="姓名">{{ valueText(patient.name) }}</el-descriptions-item>
           <el-descriptions-item label="性别">{{ sexText(patient.sex) }}</el-descriptions-item>
@@ -119,7 +130,7 @@
           <el-descriptions-item label="门诊号">{{ valueText(patient.patientNumber) }}</el-descriptions-item>
         </el-descriptions>
 
-        <el-form label-position="top" class="base-form" :model="baseForm">
+        <el-form label-position="top" class="base-form" :model="baseForm" :disabled="baseReadonly">
           <el-form-item label="籍贯"><el-input v-model.trim="baseForm.nativePlace" /></el-form-item>
           <el-form-item label="医保类型"><dict-select v-model="baseForm.medicalInsuranceType" :options="dicts.medicalInsuranceType" /></el-form-item>
           <el-form-item label="文化程度"><dict-select v-model="baseForm.degree" :options="dicts.degree" /></el-form-item>
@@ -157,20 +168,20 @@
 
         <div class="base-med-header">
           <h3>当前用药</h3>
-          <el-button @click="addMedicine">新增用药</el-button>
+          <el-button :disabled="baseReadonly" @click="addMedicine">新增用药</el-button>
         </div>
         <div v-for="(item, index) in baseForm.msList" :key="index" class="medicine-row">
-          <el-input v-model.trim="item.medication" placeholder="药物名称" />
-          <el-input v-model.trim="item.dose" placeholder="剂量" />
-          <el-input v-model.trim="item.frequency" placeholder="频次" />
-          <el-input v-model.trim="item.way" placeholder="用法" />
-          <el-button link type="danger" @click="removeMedicine(index)">删除</el-button>
+          <el-input v-model.trim="item.medication" :disabled="baseReadonly" placeholder="药物名称" />
+          <el-input v-model.trim="item.dose" :disabled="baseReadonly" placeholder="剂量" />
+          <el-input v-model.trim="item.frequency" :disabled="baseReadonly" placeholder="频次" />
+          <el-input v-model.trim="item.way" :disabled="baseReadonly" placeholder="用法" />
+          <el-button link type="danger" :disabled="baseReadonly" @click="removeMedicine(index)">删除</el-button>
         </div>
       </section>
       <template #footer>
         <span class="dialog-footer">
           <el-button @click="baseOpen = false">取消</el-button>
-          <el-button type="primary" :loading="baseSaving" @click="saveBaseForm">保存</el-button>
+          <el-button type="primary" :disabled="baseSaveDisabled" :loading="baseSaving" @click="saveBaseForm">保存</el-button>
         </span>
       </template>
     </el-dialog>
@@ -234,6 +245,7 @@ import {
 } from '../api/oca.js';
 import { dateText, sexText, valueText } from '../format.js';
 import { getUser } from '../session.js';
+import { isReadOnlyMode, writeDisabledMessage } from '../config/runtime.js';
 
 const props = defineProps({ id: { type: String, required: true } });
 const user = getUser();
@@ -315,6 +327,8 @@ const baseOpen = ref(false);
 const baseLoading = ref(false);
 const baseSaving = ref(false);
 const baseOutpatientId = ref(null);
+const baseAssessmentState = ref(null);
+const baseAssociationWarning = ref('');
 const previewOpen = ref(false);
 const previewLoading = ref(false);
 const previewVisit = ref({});
@@ -399,6 +413,18 @@ async function openReport(row) {
 }
 
 const reportReadonly = computed(() => Number(currentAssessmentState.value) === 1 || Number(reportMeta.value.state) === 2);
+const reportSaveDisabled = computed(() => isReadOnlyMode || reportReadonly.value);
+const reportDisabledReason = computed(() =>
+  isReadOnlyMode ? writeDisabledMessage : '该评估已提交，当前按只读方式查看，避免覆盖正式结果。',
+);
+const baseReadonly = computed(() => isReadOnlyMode || Number(baseAssessmentState.value) === 1 || Boolean(baseAssociationWarning.value));
+const baseSaveDisabled = computed(() => baseReadonly.value);
+const baseDisabledReason = computed(() => {
+  if (isReadOnlyMode) return writeDisabledMessage;
+  if (Number(baseAssessmentState.value) === 1) return '该评估已提交，一般情况表当前按只读方式查看。';
+  if (baseAssociationWarning.value) return baseAssociationWarning.value;
+  return '';
+});
 
 function normalizeQuestions(list) {
   return (list || []).map((item, index) => {
@@ -446,9 +472,14 @@ function buildQuestionPayload(questions) {
 }
 
 async function saveReport() {
-  if (reportReadonly.value) return;
+  if (reportSaveDisabled.value) {
+    ElMessage.warning(reportDisabledReason.value);
+    return;
+  }
   reportSaving.value = true;
   try {
+    const freshState = await verifyReportWritable();
+    if (!freshState) return;
     await saveQuestionReport(reportMeta.value.id, buildQuestionPayload(reportRows.value));
     ElMessage.success('量表已保存');
     reportOpen.value = false;
@@ -461,6 +492,27 @@ async function saveReport() {
   } finally {
     reportSaving.value = false;
   }
+}
+
+async function verifyReportWritable() {
+  if (!currentOutpatientId.value) return true;
+  const result = await getAssessmentTables(currentOutpatientId.value);
+  const list = result.list || [];
+  const fresh = list.find(
+    (item) =>
+      Number(item.id) === Number(reportMeta.value.id) ||
+      Number(item.reportId) === Number(reportMeta.value.id) ||
+      Number(item.checkTableId) === Number(reportMeta.value.checkTableId),
+  );
+  const assessmentState = result.state ?? result.outpatientState ?? currentAssessmentState.value;
+  const tableState = fresh?.state ?? fresh?.reportState ?? reportMeta.value.state;
+  currentAssessmentState.value = assessmentState;
+  if (fresh) reportMeta.value = { ...reportMeta.value, ...mapTable(fresh) };
+  if (Number(assessmentState) === 1 || Number(tableState) === 2) {
+    ElMessage.warning('评估已提交，禁止保存量表。');
+    return false;
+  }
+  return true;
 }
 
 async function openCompositePreview(row) {
@@ -550,9 +602,9 @@ function normalizeDictList(list) {
   });
 }
 
-function cleanPayload(payload) {
+function cleanPayload(payload, { keepEmpty = false } = {}) {
   return Object.fromEntries(
-    Object.entries(payload).filter(([, value]) => value !== '' && value !== null && value !== undefined),
+    Object.entries(payload).filter(([, value]) => (keepEmpty ? value !== undefined : value !== '' && value !== null && value !== undefined)),
   );
 }
 
@@ -579,6 +631,8 @@ async function loadBaseDicts() {
 
 async function openBase(row) {
   baseOutpatientId.value = row?.id || null;
+  baseAssessmentState.value = row?.state ?? null;
+  baseAssociationWarning.value = '';
   baseOpen.value = true;
   baseLoading.value = true;
   try {
@@ -587,9 +641,15 @@ async function openBase(row) {
       getBaseMedications(props.id).catch(() => []),
       loadBaseDicts(),
     ]);
+    const selectedOutpatientId = row?.id || base?.outpatientId || null;
+    if (base?.id && row?.id && !base?.outpatientId) {
+      baseAssociationWarning.value = '后端仅按患者返回一般情况表，无法确认该记录是否属于当前评估，已禁止保存以避免误更新。';
+    } else if (base?.id && row?.id && Number(base.outpatientId) !== Number(row.id)) {
+      baseAssociationWarning.value = '当前一般情况表记录归属的评估与所选评估不一致，已禁止保存以避免误更新。';
+    }
     Object.assign(baseForm, defaultBaseForm(), base || {}, {
       patientId: Number(props.id),
-      outpatientId: row?.id || base?.outpatientId || null,
+      outpatientId: selectedOutpatientId,
       tableId: row?.tableId || base?.tableId || 4,
       msList: normalizeMsList((Array.isArray(medications) && medications.length ? medications : base?.msList) || []),
     });
@@ -608,10 +668,12 @@ function recalcBmi() {
 }
 
 function addMedicine() {
+  if (baseReadonly.value) return;
   baseForm.msList.push(emptyMedicine());
 }
 
 function removeMedicine(index) {
+  if (baseReadonly.value) return;
   if (baseForm.msList.length <= 1) {
     baseForm.msList[0] = emptyMedicine();
     return;
@@ -624,6 +686,10 @@ function printPreview() {
 }
 
 async function saveBaseForm() {
+  if (baseSaveDisabled.value) {
+    ElMessage.warning(baseDisabledReason.value);
+    return;
+  }
   if (!baseForm.id && !(baseOutpatientId.value || baseForm.outpatientId)) {
     ElMessage.warning('请先选择一条评估记录后再新增一般情况表');
     return;
@@ -649,9 +715,8 @@ async function saveBaseForm() {
       hasElevator: toNumberOrNull(baseForm.hasElevator),
       fallHistory: toNumberOrNull(baseForm.fallHistory),
       isBowelProblem: toNumberOrNull(baseForm.isBowelProblem),
-    });
-    if (msList.length) payload.msList = msList;
-    else delete payload.msList;
+    }, { keepEmpty: Boolean(baseForm.id) });
+    payload.msList = msList;
     await saveBase(payload);
     ElMessage.success('一般情况已保存');
     baseOpen.value = false;

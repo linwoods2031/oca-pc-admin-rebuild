@@ -78,6 +78,11 @@ body {
   padding: 20px;
 }
 
+.gray-warning {
+  margin-bottom: 16px;
+  border-color: #d97706;
+}
+
 .page-title {
   margin: 0;
   font-size: 26px;

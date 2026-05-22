@@ -32,7 +32,7 @@ export function updatePatient(payload) {
 
 export function getFollowUps(params) {
   return api.get('/patient/archive/listPage', {
-    params: cleanParams({ pageNum: 1, pageSize: 20, nextVisitDate: '2025-01-01', ...params }),
+    params: cleanParams({ pageNum: 1, pageSize: 20, ...params }),
   });
 }
 

@@ -23,6 +23,7 @@
             :model-value="Number(row.repeatVisitor) === 1"
             active-text="是"
             inactive-text="否"
+            :disabled="isReadOnlyMode"
             @change="(value) => changeVisitor(row, value)"
           />
         </template>
@@ -48,6 +49,7 @@
 import { onMounted, reactive, ref } from 'vue';
 import { ElMessage } from 'element-plus';
 import { getFollowUps, updateVisitor } from '../api/oca.js';
+import { isReadOnlyMode, writeDisabledMessage } from '../config/runtime.js';
 import { dateText, sexText } from '../format.js';
 
 const loading = ref(false);
@@ -69,6 +71,10 @@ async function load() {
 }
 
 async function changeVisitor(row, value) {
+  if (isReadOnlyMode) {
+    ElMessage.warning(writeDisabledMessage);
+    return;
+  }
   try {
     await updateVisitor({ id: row.id, repeatVisitor: value ? 1 : 0 });
     row.repeatVisitor = value ? 1 : 0;

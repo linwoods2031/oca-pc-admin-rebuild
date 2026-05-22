@@ -6,7 +6,11 @@
       <el-input v-model="query.admissionNumber" placeholder="住院号" clearable @keyup.enter="load" />
       <el-button type="primary" :loading="loading" @click="load">搜索</el-button>
       <el-button @click="reset">重置</el-button>
-      <el-button type="success" @click="$router.push('/patients/new')">新增患者</el-button>
+      <el-tooltip :disabled="!isReadOnlyMode" :content="writeDisabledMessage" placement="top">
+        <span>
+          <el-button type="success" :disabled="isReadOnlyMode" @click="$router.push('/patients/new')">新增患者</el-button>
+        </span>
+      </el-tooltip>
     </div>
     <el-table v-loading="loading" :data="rows" stripe height="calc(100vh - 238px)">
       <el-table-column prop="name" label="姓名" min-width="110" fixed />
@@ -43,6 +47,7 @@
 import { onMounted, reactive, ref } from 'vue';
 import { ElMessage } from 'element-plus';
 import { getPatients } from '../api/oca.js';
+import { isReadOnlyMode, writeDisabledMessage } from '../config/runtime.js';
 import { dateText, sexText } from '../format.js';
 
 const loading = ref(false);

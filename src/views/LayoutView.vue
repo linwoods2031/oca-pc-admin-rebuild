@@ -16,6 +16,14 @@
           <el-button @click="logout">退出</el-button>
         </div>
       </header>
+      <el-alert
+        class="gray-warning"
+        type="warning"
+        :closable="false"
+        show-icon
+        :title="grayBannerTitle"
+        :description="grayBannerMessage"
+      />
       <router-view />
     </main>
   </section>
@@ -24,6 +32,7 @@
 <script setup>
 import { useRouter } from 'vue-router';
 import { clearSession, getUser } from '../session.js';
+import { grayBannerMessage, grayBannerTitle } from '../config/runtime.js';
 
 const router = useRouter();
 const user = getUser();

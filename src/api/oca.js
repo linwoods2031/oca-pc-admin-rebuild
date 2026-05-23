@@ -88,7 +88,9 @@ export function getQuestionReport(tableId, reportId) {
   return api.get('/outpatient/check/selectReport', { params: { tableId, reportId } });
 }
 
-export function saveQuestionReport(reportId, itemList) {
+export function saveQuestionReport(reportId, itemList, context = {}) {
+  assertPatientWriteAllowed(context?.patientId, '当前患者不在写入灰度 allow-list，禁止保存量表');
+  assertOutpatientWriteAllowed(context?.outpatientId, '当前评估不在写入灰度 allow-list，禁止保存量表');
   assertReportWriteAllowed(reportId, '当前量表报告不在写入灰度 allow-list，禁止保存量表');
   return api.post('/outpatient/check/editCheckReport', { reportId, itemList });
 }

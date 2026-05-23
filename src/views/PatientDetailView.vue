@@ -504,7 +504,10 @@ async function saveReport() {
     assertReportWriteAllowed(reportMeta.value.id, '当前量表报告不在写入灰度 allow-list，禁止保存量表');
     const freshState = await verifyReportWritable();
     if (!freshState) return;
-    await saveQuestionReport(reportMeta.value.id, buildQuestionPayload(reportRows.value));
+    await saveQuestionReport(reportMeta.value.id, buildQuestionPayload(reportRows.value), {
+      patientId: props.id,
+      outpatientId: currentOutpatientId.value,
+    });
     ElMessage.success('量表已保存');
     reportOpen.value = false;
     if (currentOutpatientId.value) {

@@ -1,4 +1,10 @@
 import { api } from './client.js';
+import {
+  assertCreatePatientAllowed,
+  assertOutpatientWriteAllowed,
+  assertPatientWriteAllowed,
+  assertReportWriteAllowed,
+} from '../config/runtime.js';
 
 function cleanParams(params = {}) {
   return Object.fromEntries(
@@ -23,10 +29,12 @@ export function getPatient(id) {
 }
 
 export function addPatient(payload) {
+  assertCreatePatientAllowed();
   return api.post('/patient/archive/add', payload);
 }
 
 export function updatePatient(payload) {
+  assertPatientWriteAllowed(payload?.id, '当前患者不在写入灰度 allow-list，禁止编辑患者');
   return api.post('/patient/archive/update', payload);
 }
 
@@ -37,6 +45,7 @@ export function getFollowUps(params) {
 }
 
 export function updateVisitor(payload) {
+  assertPatientWriteAllowed(payload?.id, '当前患者不在写入灰度 allow-list，禁止修改回访状态');
   return api.post('/patient/archive/updateVisitor', payload);
 }
 
@@ -52,10 +61,14 @@ export function getBaseMedications(patientId) {
 }
 
 export function addBase(payload) {
+  assertPatientWriteAllowed(payload?.patientId, '当前患者不在写入灰度 allow-list，禁止保存一般情况表');
+  assertOutpatientWriteAllowed(payload?.outpatientId, '当前评估不在写入灰度 allow-list，禁止保存一般情况表');
   return api.post('/outpatient/base/add', payload);
 }
 
 export function updateBase(payload) {
+  assertPatientWriteAllowed(payload?.patientId, '当前患者不在写入灰度 allow-list，禁止保存一般情况表');
+  assertOutpatientWriteAllowed(payload?.outpatientId, '当前评估不在写入灰度 allow-list，禁止保存一般情况表');
   return api.post('/outpatient/base/update', payload);
 }
 
@@ -76,6 +89,7 @@ export function getQuestionReport(tableId, reportId) {
 }
 
 export function saveQuestionReport(reportId, itemList) {
+  assertReportWriteAllowed(reportId, '当前量表报告不在写入灰度 allow-list，禁止保存量表');
   return api.post('/outpatient/check/editCheckReport', { reportId, itemList });
 }
 

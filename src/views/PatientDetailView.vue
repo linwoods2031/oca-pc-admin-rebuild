@@ -245,7 +245,13 @@ import {
 } from '../api/oca.js';
 import { dateText, sexText, valueText } from '../format.js';
 import { getUser } from '../session.js';
-import { isReadOnlyMode, writeDisabledMessage } from '../config/runtime.js';
+import {
+  assertOutpatientWriteAllowed,
+  assertPatientWriteAllowed,
+  assertReportWriteAllowed,
+  isReadOnlyMode,
+  writeDisabledMessage,
+} from '../config/runtime.js';
 
 const props = defineProps({ id: { type: String, required: true } });
 const user = getUser();
@@ -427,10 +433,12 @@ const baseDisabledReason = computed(() => {
 });
 
 function isAssessmentSubmitted(state) {
+  // 后端评估 state === 1 表示整次评估已提交。
   return Number(state) === 1;
 }
 
 function isReportSubmitted(report = {}) {
+  // 量表报告 state/reportState/status/finishState === 2 暂按已提交处理，实际主字段仍需接口回归确认。
   return [report.state, report.reportState, report.status, report.finishState].some((value) => Number(value) === 2);
 }
 
@@ -491,6 +499,9 @@ async function saveReport() {
   }
   reportSaving.value = true;
   try {
+    assertPatientWriteAllowed(props.id, '当前患者不在写入灰度 allow-list，禁止保存量表');
+    assertOutpatientWriteAllowed(currentOutpatientId.value, '当前评估不在写入灰度 allow-list，禁止保存量表');
+    assertReportWriteAllowed(reportMeta.value.id, '当前量表报告不在写入灰度 allow-list，禁止保存量表');
     const freshState = await verifyReportWritable();
     if (!freshState) return;
     await saveQuestionReport(reportMeta.value.id, buildQuestionPayload(reportRows.value));
@@ -519,11 +530,11 @@ async function verifyReportWritable() {
   );
   const freshAssessment = findAssessmentById(freshPatient?.checkList, currentOutpatientId.value);
   const assessmentState = freshAssessment?.state ?? result.state ?? result.outpatientState ?? currentAssessmentState.value;
-  const tableState = fresh?.state ?? fresh?.reportState ?? reportMeta.value.state;
+  const mergedFreshReport = fresh ? { ...reportMeta.value, ...fresh } : reportMeta.value;
   currentAssessmentState.value = assessmentState;
-  if (fresh) reportMeta.value = { ...reportMeta.value, ...mapTable(fresh) };
+  if (fresh) reportMeta.value = { ...mergedFreshReport, ...mapTable(fresh) };
   if (freshPatient) patient.value = freshPatient;
-  if (isAssessmentSubmitted(assessmentState) || isReportSubmitted({ state: tableState })) {
+  if (isAssessmentSubmitted(assessmentState) || isReportSubmitted(mergedFreshReport)) {
     ElMessage.warning('评估已提交，禁止保存量表。');
     return false;
   }
@@ -713,6 +724,10 @@ async function verifyBaseWritable() {
     ElMessage.warning('评估已提交，禁止保存一般情况表。');
     return false;
   }
+  if (baseForm.id && freshBase?.id && Number(freshBase.id) !== Number(baseForm.id)) {
+    ElMessage.warning('重新读取的一般情况表记录与当前编辑记录不一致，已禁止保存。');
+    return false;
+  }
   if (freshBase?.id && outpatientId && !freshBase?.outpatientId) {
     baseAssociationWarning.value = '后端仅按患者返回一般情况表，无法确认该记录是否属于当前评估，已禁止保存以避免误更新。';
     ElMessage.warning(baseAssociationWarning.value);
@@ -737,6 +752,8 @@ async function saveBaseForm() {
   }
   baseSaving.value = true;
   try {
+    assertPatientWriteAllowed(props.id, '当前患者不在写入灰度 allow-list，禁止保存一般情况表');
+    assertOutpatientWriteAllowed(baseOutpatientId.value || baseForm.outpatientId, '当前评估不在写入灰度 allow-list，禁止保存一般情况表');
     const freshWritable = await verifyBaseWritable();
     if (!freshWritable) return;
     const msList = normalizeMsList(baseForm.msList).filter(
@@ -762,6 +779,7 @@ async function saveBaseForm() {
     if (msList.length) {
       payload.msList = msList;
     }
+    // 删除全部用药的后端语义未确认前，不提交空 msList，避免被解释为清空后端用药。
     await saveBase(payload);
     ElMessage.success('一般情况已保存');
     baseOpen.value = false;

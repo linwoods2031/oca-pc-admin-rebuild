@@ -47,9 +47,9 @@
 
 <script setup>
 import { onMounted, reactive, ref } from 'vue';
-import { ElMessage } from 'element-plus';
+import { ElMessage, ElMessageBox } from 'element-plus';
 import { getFollowUps, updateVisitor } from '../api/oca.js';
-import { isReadOnlyMode, writeDisabledMessage } from '../config/runtime.js';
+import { assertPatientWriteAllowed, isReadOnlyMode, writeDisabledMessage } from '../config/runtime.js';
 import { dateText, sexText } from '../format.js';
 
 const loading = ref(false);
@@ -76,11 +76,19 @@ async function changeVisitor(row, value) {
     return;
   }
   try {
+    assertPatientWriteAllowed(row.id, '当前患者不在写入灰度 allow-list，禁止修改回访状态');
+    await ElMessageBox.confirm('将写入生产 API，仅限测试患者。确认修改当前患者回访状态？', '写入灰度确认', {
+      confirmButtonText: '确认写入',
+      cancelButtonText: '取消',
+      type: 'warning',
+    });
     await updateVisitor({ id: row.id, repeatVisitor: value ? 1 : 0 });
     row.repeatVisitor = value ? 1 : 0;
     ElMessage.success('已更新回访状态');
   } catch (error) {
-    ElMessage.error(error.message || '更新失败');
+    if (error !== 'cancel' && error !== 'close') {
+      ElMessage.error(error.message || '更新失败');
+    }
     load();
   }
 }

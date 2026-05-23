@@ -10,6 +10,8 @@
 - 仓库内不得提交真实账号、密码、测试患者姓名、身份证、手机号、生产接口验证细节。
 - 文档统一使用 `<username>`、`<password>`、`<test-patient>`、`<domain>`、`<server>` 等占位符。
 - 灰度验证只允许使用授权测试账号和测试患者；默认生产构建启用只读保护。
+- 受限写入灰度不是正式上线，不得扩大到真实业务患者或全量写入。
+- 不得将真实 allow-list id、账号、患者姓名、身份证、手机号、token 或生产验证细节提交到仓库。
 
 ## 1. 本地构建要求
 
@@ -22,6 +24,8 @@ VITE_APP_BASE=/pc-rebuild/ VITE_READONLY=true npm run build
 ```
 
 确认 `dist/index.html` 中的 JS/CSS 资源路径以 `/pc-rebuild/assets/` 开头，并记录真实 hashed 文件名用于上线验证。
+
+本地 `npm run dev` 通过 Vite proxy 连接既有生产 API 域名；运行时默认只读，只有显式设置 `VITE_ENABLE_PROD_WRITES=true` 才会放开业务写入 guard。
 
 ## 2. 服务器备份
 
@@ -92,6 +96,9 @@ ssh <user>@<server> 'sudo systemctl reload nginx'
 curl -fsSI https://<domain>/pc-rebuild/
 curl -fsSI https://<domain>/pc-rebuild/assets/<hashed>.js
 curl -fsSI https://<domain>/pc-rebuild/assets/<hashed>.css
+curl -fsSI https://<domain>/pc-rebuild/patients
+curl -fsSI https://<domain>/pc-rebuild/follow-up
+curl -fsSI https://<domain>/pc-rebuild/patients/<patient-id>
 ```
 
 浏览器验证清单：
@@ -104,22 +111,32 @@ curl -fsSI https://<domain>/pc-rebuild/assets/<hashed>.css
 
 ## 5.1 写入灰度准入
 
-写入灰度不得复用只读灰度包，必须重新构建并确认页面顶部提示为“当前允许写入生产 API”。示例：
+写入灰度不得复用只读灰度包，必须重新构建并确认页面顶部提示为“当前允许写入生产 API”。写入包必须配置 allow-list，否则页面仍可登录和读取，但所有业务写入都会中止并提示“写入灰度未配置 allow-list，禁止写入”。
+
+示例命令中的 id 均为占位符，真实 id 只能由发布负责人在构建环境中临时注入，不得写入源码、文档或提交记录：
 
 ```bash
 cd /Users/w5/codex/老年评估/pc-rebuild
-VITE_APP_BASE=/pc-rebuild/ VITE_ENABLE_PROD_WRITES=true npm run build
+VITE_APP_BASE=/pc-rebuild/ \
+VITE_ENABLE_PROD_WRITES=true \
+VITE_WRITE_ALLOW_PATIENT_IDS=<patient-id> \
+VITE_WRITE_ALLOW_OUTPATIENT_IDS=<outpatient-id> \
+VITE_WRITE_ALLOW_REPORT_IDS=<report-id> \
+npm run build
 ```
+
+如需验证新增患者，还必须额外显式设置 `VITE_ALLOW_CREATE_PATIENT=true`。默认即使开启 `VITE_ENABLE_PROD_WRITES=true`，也禁止新增患者。
 
 写入灰度只允许覆盖以下最小范围：
 
 1. 使用授权测试账号登录。
 2. 仅打开明确的 `<test-patient>`。
 3. 仅操作未提交评估记录；已提交评估的量表和一般情况表必须保持只读。
-4. 新增或编辑患者前，确认当前用户接口可返回 `deptId`、`hospitalId`、`attendingDoctor` 所需归属字段；前端无法推导时会中止新增。
-5. 一般情况表只允许保存能确认 `outpatientId` 归属的记录；后端仅按 `patientId` 返回且无法确认归属时，前端会中止保存。
-6. 当前用药为空时前端不提交 `msList` 字段，避免把空数组解释为清空用药。
-7. 量表保存前会重新读取患者详情和量表列表，若评估或量表已提交会中止保存。
+4. 患者编辑、一般情况表保存、量表保存、回访开关必须命中对应 allow-list。
+5. 新增或编辑患者前，确认当前用户接口可返回 `deptId`、`hospitalId`、`attendingDoctor` 所需归属字段；前端无法推导时会中止新增。
+6. 一般情况表只允许保存能确认 `outpatientId` 归属的记录；后端仅按 `patientId` 返回且无法确认归属时，前端会中止保存。
+7. 当前用药为空时前端不提交 `msList` 字段，避免把空数组解释为清空用药；删除全部用药的后端语义未确认前，不支持通过空 `msList` 清空后端用药。
+8. 量表保存前会重新读取患者详情和量表列表，若评估或量表已提交会中止保存。
 
 写入灰度验证清单：
 
@@ -141,6 +158,13 @@ VITE_APP_BASE=/pc-rebuild/ VITE_ENABLE_PROD_WRITES=true npm run build
 - 刷新深层路由返回 404。
 - 页面未显示灰度只读提示或写按钮可误触。
 - 登录后患者列表/详情等核心只读链路异常。
+- 写入 guard 未生效。
+- allow-list 外患者可写。
+- 新增患者未显式开启却可提交。
+- 已提交评估或已提交量表可写。
+- 一般情况表跨评估误写。
+- `msList` 被误清空。
+- 患者归属字段异常。
 - 控制台出现阻断渲染的 JS 错误。
 - Nginx 配置检查失败或 `/prod-api/` 代理受影响。
 

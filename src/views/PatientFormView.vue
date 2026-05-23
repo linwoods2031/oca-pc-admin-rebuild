@@ -76,7 +76,12 @@ import { computed, onMounted, reactive, ref } from 'vue';
 import { ElMessage } from 'element-plus';
 import { useRouter } from 'vue-router';
 import { addPatient, getInfo, getPatient, updatePatient } from '../api/oca.js';
-import { isReadOnlyMode, writeDisabledMessage } from '../config/runtime.js';
+import {
+  assertCreatePatientAllowed,
+  assertPatientWriteAllowed,
+  isReadOnlyMode,
+  writeDisabledMessage,
+} from '../config/runtime.js';
 import { getUser } from '../session.js';
 
 const props = defineProps({ id: { type: String, default: '' } });
@@ -159,6 +164,7 @@ function inferArchiveOwner(source = {}) {
   return compact({
     deptId: firstDefined(user.deptId, dept?.deptId, dept?.id),
     hospitalId: firstDefined(user.hospitalId, dept?.hospitalId, source.hospitalId),
+    // attendingDoctor 由 user.attendingDoctor 优先，其次退回 userId/id；该退回语义仍需后端确认。
     attendingDoctor: firstDefined(user.attendingDoctor, user.userId, user.id),
   });
 }
@@ -231,6 +237,16 @@ function cancel() {
 async function submit() {
   if (isReadOnlyMode) {
     ElMessage.warning(writeDisabledMessage);
+    return;
+  }
+  try {
+    if (isEdit.value) {
+      assertPatientWriteAllowed(props.id, '当前患者不在写入灰度 allow-list，禁止编辑患者');
+    } else {
+      assertCreatePatientAllowed();
+    }
+  } catch (error) {
+    ElMessage.warning(error.message || '写入灰度 guard 未通过');
     return;
   }
   const valid = await formRef.value?.validate().catch(() => false);

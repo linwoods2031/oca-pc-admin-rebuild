@@ -30,8 +30,6 @@ npm run release:evidence:verified:markdown
 
 默认 `formal-candidate` 必须是只读候选包。受限写入灰度包必须使用 `VITE_RELEASE_PROFILE=restricted-write-gray`，只能作为 allow-list 测试患者验证证据，不能作为正式上线评审候选包。
 
-## 外部证据
-
 ## 已反查确认的契约
 
 患者归属字段已经通过恢复后端 JAR、Mapper、数据库结构和已认可小程序壳反查确认，记录见 `docs/recovered-contracts.md`。该项不再作为未知 payload 契约要求人工确认；正式发布时仍需确认服务器运行包与本地恢复材料一致。

@@ -19,11 +19,11 @@ describe('report payload helpers', () => {
   it('builds radio question payload', () => {
     const [row] = buildQuestionPayload([
       {
-        id: 101,
+        id: 'question-allow-1',
         type: 0,
         content: '单选题',
-        selectedOptionId: '5',
-        options: [{ id: 5, optionScore: 3 }],
+        selectedOptionId: 'option-allow-1',
+        options: [{ id: 'option-allow-1', optionScore: 3 }],
         order: 1,
         displayContent: '单选题',
         showGroup: true,
@@ -31,8 +31,8 @@ describe('report payload helpers', () => {
     ]);
 
     expect(row.checkItem).toEqual({
-      questionId: 101,
-      optionId: 5,
+      questionId: 'question-allow-1',
+      optionId: 'option-allow-1',
       score: 3,
       question: '单选题',
     });
@@ -56,7 +56,7 @@ describe('report payload helpers', () => {
   it('builds input question payload', () => {
     const [row] = buildQuestionPayload([
       {
-        id: 201,
+        id: 'question-input-1',
         type: 2,
         content: '输入题',
         inputValue: '说明文字',
@@ -64,10 +64,41 @@ describe('report payload helpers', () => {
     ]);
 
     expect(row.checkItem).toEqual({
-      questionId: 201,
+      questionId: 'question-input-1',
       input: '说明文字',
       question: '输入题',
     });
+  });
+
+  it('treats unknown non-radio types with inputValue as input questions only', () => {
+    const [row] = buildQuestionPayload([
+      {
+        id: 'question-special-1',
+        type: 99,
+        content: '未知题型',
+        inputValue: '保守按输入题提交',
+      },
+    ]);
+
+    expect(row.checkItem).toEqual({
+      questionId: 'question-special-1',
+      input: '保守按输入题提交',
+      question: '未知题型',
+    });
+  });
+
+  it('throws when a selected radio option is not present in options', () => {
+    expect(() =>
+      buildQuestionPayload([
+        {
+          id: 'question-bad-option-1',
+          type: 0,
+          content: '异常单选题',
+          selectedOptionId: 'option-missing-1',
+          options: [{ id: 'option-allow-1', optionScore: 1 }],
+        },
+      ]),
+    ).toThrow('量表选项数据异常，已禁止保存');
   });
 
   it('keeps empty answers as checkItem null', () => {

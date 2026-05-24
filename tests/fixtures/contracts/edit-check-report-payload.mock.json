@@ -1,0 +1,41 @@
+{
+  "reportId": "report-allow-1",
+  "itemList": [
+    {
+      "id": "question-allow-1",
+      "type": 0,
+      "content": "Mock radio question",
+      "groupName": "Mock Group",
+      "options": [
+        {
+          "id": "option-allow-1",
+          "optionText": "Mock option A",
+          "optionScore": 3
+        },
+        {
+          "id": "option-allow-2",
+          "optionText": "Mock option B",
+          "optionScore": 0
+        }
+      ],
+      "checkItem": {
+        "questionId": "question-allow-1",
+        "optionId": "option-allow-1",
+        "score": 3,
+        "question": "Mock radio question"
+      }
+    },
+    {
+      "id": "question-input-1",
+      "type": 2,
+      "content": "Mock input question",
+      "groupName": "Mock Group",
+      "options": [],
+      "checkItem": {
+        "questionId": "question-input-1",
+        "input": "Mock input value",
+        "question": "Mock input question"
+      }
+    }
+  ]
+}

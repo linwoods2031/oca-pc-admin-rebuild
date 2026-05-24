@@ -253,7 +253,9 @@ import {
   writeDisabledMessage,
 } from '../config/runtime.js';
 import { buildBasePayload, emptyMedicine, normalizeMsList } from '../utils/basePayload.js';
+import { decideBaseWritable, verifyBaseAssociation } from '../utils/baseWritable.js';
 import { buildQuestionPayload, isAssessmentSubmitted, isReportSubmitted, scoreText } from '../utils/reportPayload.js';
+import { decideReportWritable } from '../utils/reportWritable.js';
 
 const props = defineProps({ id: { type: String, required: true } });
 const user = getUser();
@@ -434,11 +436,6 @@ const baseDisabledReason = computed(() => {
   return '';
 });
 
-function findAssessmentById(list = [], outpatientId) {
-  if (!outpatientId) return null;
-  return (list || []).find((item) => Number(item.id) === Number(outpatientId)) || null;
-}
-
 function normalizeQuestions(list) {
   return (list || []).map((item, index) => {
     const prev = index > 0 ? list[index - 1] : null;
@@ -485,23 +482,22 @@ async function saveReport() {
 }
 
 async function verifyReportWritable() {
-  if (!currentOutpatientId.value) return true;
+  if (!currentOutpatientId.value) {
+    ElMessage.warning('保存前无法确认当前评估，已禁止保存量表。');
+    return false;
+  }
   const [result, freshPatient] = await Promise.all([getAssessmentTables(currentOutpatientId.value), getPatient(props.id)]);
-  const list = result.list || [];
-  const fresh = list.find(
-    (item) =>
-      Number(item.id) === Number(reportMeta.value.id) ||
-      Number(item.reportId) === Number(reportMeta.value.id) ||
-      Number(item.checkTableId) === Number(reportMeta.value.checkTableId),
-  );
-  const freshAssessment = findAssessmentById(freshPatient?.checkList, currentOutpatientId.value);
-  const assessmentState = freshAssessment?.state ?? result.state ?? result.outpatientState ?? currentAssessmentState.value;
-  const mergedFreshReport = fresh ? { ...reportMeta.value, ...fresh } : reportMeta.value;
-  currentAssessmentState.value = assessmentState;
-  if (fresh) reportMeta.value = { ...mergedFreshReport, ...mapTable(fresh) };
+  const decision = decideReportWritable({
+    freshPatient,
+    assessmentTables: result,
+    currentOutpatientId: currentOutpatientId.value,
+    reportMeta: reportMeta.value,
+  });
+  currentAssessmentState.value = decision.assessmentState ?? currentAssessmentState.value;
+  if (decision.freshReport) reportMeta.value = { ...decision.mergedReport, ...mapTable(decision.freshReport) };
   if (freshPatient) patient.value = freshPatient;
-  if (isAssessmentSubmitted(assessmentState) || isReportSubmitted(mergedFreshReport)) {
-    ElMessage.warning('评估已提交，禁止保存量表。');
+  if (!decision.allowed) {
+    ElMessage.warning(decision.reason);
     return false;
   }
   return true;
@@ -611,10 +607,14 @@ async function openBase(row) {
     ]);
     const selectedOutpatientId = row?.id || base?.outpatientId || null;
     const medicineRows = normalizeMsList((Array.isArray(medications) && medications.length ? medications : base?.msList) || []);
-    if (base?.id && row?.id && (base.outpatientId === null || base.outpatientId === undefined || base.outpatientId === '')) {
-      baseAssociationWarning.value = '后端仅按患者返回一般情况表，无法确认该记录是否属于当前评估，已禁止保存以避免误更新。';
-    } else if (base?.id && row?.id && Number(base.outpatientId) !== Number(row.id)) {
-      baseAssociationWarning.value = '当前一般情况表记录归属的评估与所选评估不一致，已禁止保存以避免误更新。';
+    if (base?.id && row?.id) {
+      const association = verifyBaseAssociation({
+        freshBase: base,
+        baseFormId: base.id,
+        outpatientId: row.id,
+        isCreateBase: false,
+      });
+      if (!association.allowed) baseAssociationWarning.value = association.reason;
     }
     Object.assign(baseForm, defaultBaseForm(), base || {}, {
       patientId: Number(props.id),
@@ -664,44 +664,17 @@ async function verifyBaseWritable() {
     ElMessage.warning('保存前复查失败，已禁止保存一般情况表。');
     return false;
   }
-  if (!freshPatient || !Array.isArray(freshPatient.checkList)) {
-    ElMessage.warning('保存前无法确认当前患者评估列表，已禁止保存一般情况表。');
-    return false;
-  }
   patient.value = freshPatient;
-  const freshAssessment = findAssessmentById(freshPatient.checkList, outpatientId);
-  if (!freshAssessment) {
-    ElMessage.warning('保存前无法在患者评估列表中确认当前评估，已禁止保存一般情况表。');
-    return false;
-  }
-  baseAssessmentState.value = freshAssessment.state;
-  if (isAssessmentSubmitted(baseAssessmentState.value)) {
-    ElMessage.warning('评估已提交，禁止保存一般情况表。');
-    return false;
-  }
-  const hasFreshBaseId = freshBase?.id !== null && freshBase?.id !== undefined && freshBase?.id !== '';
-  const isCreateBase = !baseForm.id;
-  if (hasFreshBaseId && baseForm.id && Number(freshBase.id) !== Number(baseForm.id)) {
-    ElMessage.warning('重新读取的一般情况表记录与当前编辑记录不一致，已禁止保存。');
-    return false;
-  }
-  if (hasFreshBaseId && isCreateBase) {
-    ElMessage.warning('保存前复查发现一般情况表已存在，请重新打开后编辑。');
-    return false;
-  }
-  // 一般情况表接口按 patientId 返回，无法确认 outpatientId 归属时必须禁止保存。
-  if (hasFreshBaseId && (freshBase.outpatientId === null || freshBase.outpatientId === undefined || freshBase.outpatientId === '')) {
-    baseAssociationWarning.value = '后端仅按患者返回一般情况表，无法确认该记录是否属于当前评估，已禁止保存以避免误更新。';
-    ElMessage.warning(baseAssociationWarning.value);
-    return false;
-  }
-  if (hasFreshBaseId && Number(freshBase.outpatientId) !== Number(outpatientId)) {
-    baseAssociationWarning.value = '当前一般情况表记录归属的评估与所选评估不一致，已禁止保存以避免误更新。';
-    ElMessage.warning(baseAssociationWarning.value);
-    return false;
-  }
-  if (!hasFreshBaseId && !isCreateBase) {
-    ElMessage.warning('保存前复查未找到当前一般情况表记录，已禁止保存。');
+  const decision = decideBaseWritable({
+    freshPatient,
+    freshBase,
+    outpatientId,
+    baseFormId: baseForm.id,
+  });
+  baseAssessmentState.value = decision.assessment?.state ?? baseAssessmentState.value;
+  if (!decision.allowed) {
+    if (decision.code?.startsWith('fresh-base-')) baseAssociationWarning.value = decision.reason;
+    ElMessage.warning(baseAssociationWarning.value || decision.reason);
     return false;
   }
   return true;
@@ -722,6 +695,9 @@ async function saveBaseForm() {
     assertOutpatientWriteAllowed(baseOutpatientId.value || baseForm.outpatientId, '当前评估不在写入灰度 allow-list，禁止保存一般情况表');
     const freshWritable = await verifyBaseWritable();
     if (!freshWritable) return;
+    if (!normalizeMsList(baseForm.msList).length) {
+      ElMessage.warning('当前不会清空后端已有用药；如需清空需后端确认支持。');
+    }
     const payload = buildBasePayload(baseForm, {
       patientId: Number(props.id),
       outpatientId: baseOutpatientId.value || baseForm.outpatientId,
@@ -751,7 +727,7 @@ function answerText(row) {
   if (row.answer) return row.answer;
   if (row.checkItem?.input) return row.checkItem.input;
   const optionId = row.checkItem?.optionId;
-  const option = (row.options || []).find((item) => Number(item.id) === Number(optionId));
+  const option = (row.options || []).find((item) => String(item.id) === String(optionId));
   return option?.optionText || '/';
 }
 

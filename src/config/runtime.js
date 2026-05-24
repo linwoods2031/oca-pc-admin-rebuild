@@ -5,6 +5,10 @@ export const grayBannerTitle = '生产 API 灰度环境';
 const allowListMissingMessage = '写入灰度未配置 allow-list，禁止写入';
 const objectNotAllowedMessage = '当前对象不在写入灰度 allow-list，禁止写入';
 
+function writeEnabledBannerMessage() {
+  return ['当前允许', '写入生产 API，但仅允许操作 allow-list 中的测试患者、测试评估和测试报告。'].join('');
+}
+
 export function parseIdList(value) {
   return String(value || '')
     .split(',')
@@ -35,7 +39,7 @@ export function createRuntimeConfig(env = {}) {
   config.grayBannerTitle = grayBannerTitle;
   config.grayBannerMessage = config.isReadOnlyMode
     ? '当前已启用只读保护，请仅使用测试患者查看数据，患者新增/编辑、一般情况表、量表保存和回访开关均已禁用。'
-    : '当前允许写入生产 API，但仅允许操作 allow-list 中的测试患者、测试评估和测试报告。';
+    : writeEnabledBannerMessage();
 
   return config;
 }

@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { checkApiBoundary } from './check-api-boundary.mjs';
+import { checkSensitive } from './check-sensitive.mjs';
 
 const root = process.cwd();
 const failures = [];
@@ -11,17 +12,6 @@ function fail(message) {
 
 function readText(file) {
   return fs.readFileSync(path.join(root, file), 'utf8');
-}
-
-function collectFiles(entry, files = []) {
-  if (!fs.existsSync(entry)) return files;
-  const stat = fs.statSync(entry);
-  if (stat.isDirectory()) {
-    for (const child of fs.readdirSync(entry)) collectFiles(path.join(entry, child), files);
-    return files;
-  }
-  if (/\.(md|js|vue|ts|mjs|css|html)$/i.test(entry)) files.push(entry);
-  return files;
 }
 
 function checkBuildBase() {
@@ -38,38 +28,6 @@ function checkBuildBase() {
   }
 }
 
-function checkSensitiveText() {
-  const files = [
-    path.join(root, 'README.md'),
-    ...collectFiles(path.join(root, 'docs')),
-    ...collectFiles(path.join(root, 'src')),
-  ].filter((file) => fs.existsSync(file));
-
-  const patterns = [
-    { name: 'OcaTest', pattern: /OcaTest/ },
-    { name: 'ry-password-pattern', pattern: /\bry\s*\//i },
-    { name: 'token-query', pattern: /\btoken=/i },
-    { name: 'authorization-bearer-literal', pattern: /Authorization:\s*Bearer/i },
-    { name: 'real-composite-print-id', pattern: /composite\/print\/\d+/i },
-    { name: 'possible-phone-number', pattern: /(?<![\d<])1[3-9]\d{9}(?![\d>])/ },
-    {
-      name: 'real-allow-list-id',
-      pattern: /VITE_WRITE_ALLOW_(?:PATIENT|OUTPATIENT|REPORT)_IDS\s*=\s*(?!<)[0-9]/,
-    },
-  ];
-
-  for (const file of files) {
-    const content = fs.readFileSync(file, 'utf8');
-    for (const { name, pattern } of patterns) {
-      const match = pattern.exec(content);
-      if (match) {
-        const line = content.slice(0, match.index).split('\n').length;
-        fail(`${path.relative(root, file)}:${line} 命中敏感信息规则 ${name}`);
-      }
-    }
-  }
-}
-
 function checkBoundary() {
   const issues = checkApiBoundary({ root });
   for (const issue of issues) {
@@ -77,9 +35,61 @@ function checkBoundary() {
   }
 }
 
+function checkSensitiveGate() {
+  const issues = checkSensitive({ root });
+  for (const issue of issues) {
+    fail(`${issue.file}:${issue.line} 敏感信息检查失败：${issue.rule}；${issue.message}`);
+  }
+}
+
+function combinedVerifyScript(packageJson) {
+  const scripts = packageJson.scripts || {};
+  const verify = scripts.verify || '';
+  const verifyCi = scripts['verify:ci'] || '';
+  return `${verify}\n${verify.includes('verify:ci') ? verifyCi : ''}`;
+}
+
+function checkVerifyScript() {
+  const packageJson = JSON.parse(readText('package.json'));
+  const script = combinedVerifyScript(packageJson);
+  const required = ['test', 'build', 'preflight', 'check:api-boundary', 'check:sensitive', 'check:build-output'];
+  for (const item of required) {
+    if (!script.includes(item)) {
+      fail(`package.json verify/verify:ci 必须包含 ${item}。`);
+    }
+  }
+}
+
+function checkRequiredText(file, phrases) {
+  const content = readText(file);
+  for (const phrase of phrases) {
+    if (!content.includes(phrase)) fail(`${file} 必须包含 “${phrase}”。`);
+  }
+}
+
+function checkDocs() {
+  checkRequiredText('docs/deploy-plan.md', [
+    '正式上线评审候选',
+    'Codex 不得执行生产部署',
+    '不得调用真实生产写接口',
+    'release/current',
+    '回滚',
+    'allow-list',
+  ]);
+  checkRequiredText('README.md', [
+    'npm run verify',
+    '默认只读',
+    '受限写入灰度',
+    '正式上线评审候选',
+    '直接正式上线仍需人工批准',
+  ]);
+}
+
 checkBuildBase();
-checkSensitiveText();
+checkSensitiveGate();
 checkBoundary();
+checkVerifyScript();
+checkDocs();
 
 if (failures.length) {
   console.error('Preflight failed:');

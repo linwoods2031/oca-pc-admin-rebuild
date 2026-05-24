@@ -32,7 +32,7 @@ describe('base payload helpers', () => {
         nativePlace: '',
         msList: [{ medication: '', dose: '', frequency: '', way: '' }],
       },
-      { patientId: 10, outpatientId: 20, keepEmpty: true },
+      { patientId: 'patient-allow-1', outpatientId: 'outpatient-allow-1', keepEmpty: true },
     );
 
     // 删除全部用药的后端语义未确认前，不通过空 msList 清空后端用药。
@@ -44,7 +44,7 @@ describe('base payload helpers', () => {
       {
         msList: [{ medication: '药物A', dose: '1片', frequency: '', way: '' }],
       },
-      { patientId: 10, outpatientId: 20 },
+      { patientId: 'patient-allow-1', outpatientId: 'outpatient-allow-1' },
     );
 
     expect(payload.msList).toEqual([{ medication: '药物A', dose: '1片', frequency: '', way: '' }]);
@@ -59,10 +59,17 @@ describe('base payload helpers', () => {
         weight: '60.5',
         msList: [],
       },
-      { patientId: 10, outpatientId: 20, keepEmpty: true },
+      { patientId: 'patient-allow-1', outpatientId: 'outpatient-allow-1', keepEmpty: true },
     );
 
     expect(payload.height).toBeNull();
     expect(payload.weight).toBe(60.5);
+  });
+
+  it('preserves string mock ids for contract tests', () => {
+    const payload = buildBasePayload({ msList: [] }, { patientId: 'patient-allow-1', outpatientId: 'outpatient-allow-1' });
+
+    expect(payload.patientId).toBe('patient-allow-1');
+    expect(payload.outpatientId).toBe('outpatient-allow-1');
   });
 });

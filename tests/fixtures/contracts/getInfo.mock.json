@@ -1,0 +1,17 @@
+{
+  "user": {
+    "id": "user-mock-1",
+    "userId": "user-mock-1",
+    "userName": "<username>",
+    "nickName": "Mock User",
+    "deptId": "dept-mock-1",
+    "hospitalId": "hospital-mock-1",
+    "attendingDoctor": "doctor-mock-1",
+    "dept": {
+      "deptId": "dept-mock-1",
+      "deptName": "Mock Department",
+      "hospitalId": "hospital-mock-1"
+    }
+  },
+  "roles": ["mock-role"]
+}

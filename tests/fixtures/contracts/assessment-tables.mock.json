@@ -1,0 +1,30 @@
+{
+  "outpatientId": "outpatient-allow-1",
+  "state": 0,
+  "list": [
+    {
+      "id": "report-allow-1",
+      "reportId": "report-allow-1",
+      "checkTableId": "table-allow-1",
+      "score": 3,
+      "remark": "Mock remark",
+      "state": 0,
+      "checkTable": {
+        "id": "table-allow-1",
+        "name": "Mock Scale"
+      }
+    },
+    {
+      "id": "report-submitted-1",
+      "reportId": "report-submitted-1",
+      "checkTableId": "table-submitted-1",
+      "score": 8,
+      "remark": "Mock submitted remark",
+      "reportState": 2,
+      "checkTable": {
+        "id": "table-submitted-1",
+        "name": "Mock Submitted Scale"
+      }
+    }
+  ]
+}

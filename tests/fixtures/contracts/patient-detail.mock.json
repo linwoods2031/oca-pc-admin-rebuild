@@ -1,0 +1,35 @@
+{
+  "id": "patient-allow-1",
+  "name": "Mock Patient",
+  "sex": 0,
+  "age": 80,
+  "idNumber": "<id-number>",
+  "phone": "<phone>",
+  "patientNumber": "patient-number-mock",
+  "admissionNumber": "admission-number-mock",
+  "deptId": "dept-mock-1",
+  "deptName": "Mock Department",
+  "doctorName": "Mock Doctor",
+  "guardianList": [
+    {
+      "id": "guardian-mock-1",
+      "patientId": "patient-allow-1",
+      "name": "Mock Guardian",
+      "phone": "<phone>"
+    }
+  ],
+  "checkList": [
+    {
+      "id": "outpatient-allow-1",
+      "patientId": "patient-allow-1",
+      "state": 0,
+      "visitDate": "2026-01-01"
+    },
+    {
+      "id": "outpatient-submitted-1",
+      "patientId": "patient-allow-1",
+      "state": 1,
+      "visitDate": "2026-02-01"
+    }
+  ]
+}

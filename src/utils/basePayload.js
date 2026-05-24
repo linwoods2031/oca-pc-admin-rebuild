@@ -28,6 +28,12 @@ export function toNumberOrNull(value) {
   return Number.isNaN(number) ? null : number;
 }
 
+export function toIdValue(value) {
+  if (value === '' || value === null || value === undefined) return value;
+  const number = Number(value);
+  return Number.isNaN(number) ? value : number;
+}
+
 export function normalizeMsList(list) {
   const rows = Array.isArray(list) ? list : [];
   return rows
@@ -38,7 +44,7 @@ export function normalizeMsList(list) {
 export function buildBasePayload(form, { patientId, outpatientId, tableId = 4, keepEmpty = false } = {}) {
   const payloadSource = {
     ...form,
-    patientId: Number(patientId),
+    patientId: toIdValue(patientId),
     outpatientId,
     tableId,
   };
@@ -53,6 +59,6 @@ export function buildBasePayload(form, { patientId, outpatientId, tableId = 4, k
   if (msList.length) {
     payload.msList = msList;
   }
-  // 删除全部用药的后端语义未确认前，不提交空 msList，避免被解释为清空后端用药。
+  // 当前版本不支持通过删除全部用药清空后端用药；后端提供明确 delete/replace 语义前，不提交空 msList。
   return payload;
 }

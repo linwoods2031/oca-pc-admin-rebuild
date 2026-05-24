@@ -13,6 +13,14 @@
     </div>
 
     <el-alert
+      v-if="createPatientWriteNotice"
+      type="error"
+      :closable="false"
+      title="新增患者将写入生产 API，仅限测试或正式变更窗口。"
+      style="margin-top: 14px"
+    />
+
+    <el-alert
       v-if="saveDisabledReason"
       type="warning"
       :closable="false"
@@ -89,6 +97,7 @@ import {
   writeDisabledMessage,
 } from '../config/runtime.js';
 import { getUser } from '../session.js';
+import { buildPatientPayload, inferArchiveOwner } from '../utils/patientPayload.js';
 
 const props = defineProps({ id: { type: String, default: '' } });
 const router = useRouter();
@@ -99,11 +108,20 @@ const formRef = ref(null);
 const original = ref({});
 const initialForm = ref({});
 const ownerDefaults = ref({});
+const ownerDefaultsReady = ref(false);
+const createPatientWriteNotice = computed(() => !isEdit.value && allowCreatePatient);
+const ownerDefaultsComplete = computed(() =>
+  Boolean(ownerDefaults.value.deptId && ownerDefaults.value.hospitalId && ownerDefaults.value.attendingDoctor),
+);
 const saveDisabledReason = computed(() => {
   if (isReadOnlyMode) return writeDisabledMessage;
   if (isWriteEnabled && !isAllowListEnabled) return writeGuardMessage;
   if (isEdit.value && !hasId(allowedPatientIds, props.id)) return '当前患者不在写入灰度 allow-list，禁止编辑患者';
   if (!isEdit.value && !allowCreatePatient) return '写入灰度默认禁止新增患者，必须显式设置 VITE_ALLOW_CREATE_PATIENT=true';
+  if (!isEdit.value && allowCreatePatient && !ownerDefaultsReady.value) return '正在确认患者归属字段，请稍后再保存。';
+  if (!isEdit.value && allowCreatePatient && ownerDefaultsReady.value && !ownerDefaultsComplete.value) {
+    return '无法从当前用户信息推导患者归属，已停止新增；请先由后端确认归属字段。';
+  }
   return '';
 });
 const saveDisabled = computed(() => Boolean(saveDisabledReason.value));
@@ -162,69 +180,29 @@ function fillForm(patient) {
   initialForm.value = { ...nextForm };
 }
 
-function firstDefined(...values) {
-  return values.find((value) => value !== undefined && value !== null && value !== '');
-}
-
-function compact(payload, { keepEmpty = false } = {}) {
-  return Object.fromEntries(
-    Object.entries(payload).filter(([, value]) => (keepEmpty ? value !== undefined : value !== '' && value !== null && value !== undefined)),
-  );
-}
-
-function inferArchiveOwner(source = {}) {
-  const user = source.user || source;
-  const dept = source.dept || user.dept || (Array.isArray(source.depts) ? source.depts[0] : null);
-  return compact({
-    deptId: firstDefined(user.deptId, dept?.deptId, dept?.id),
-    hospitalId: firstDefined(user.hospitalId, dept?.hospitalId, source.hospitalId),
-    // attendingDoctor 由 user.attendingDoctor 优先，其次退回 userId/id；该退回语义仍需后端确认。
-    attendingDoctor: firstDefined(user.attendingDoctor, user.userId, user.id),
-  });
-}
-
 async function loadOwnerDefaults() {
-  if (isEdit.value || isReadOnlyMode) return;
+  if (isEdit.value || isReadOnlyMode) {
+    ownerDefaultsReady.value = true;
+    return;
+  }
   try {
     const info = await getInfo();
     ownerDefaults.value = inferArchiveOwner(info);
   } catch {
     ownerDefaults.value = inferArchiveOwner(getUser());
+  } finally {
+    ownerDefaultsReady.value = true;
   }
 }
 
 function buildPayload() {
-  const owner = {
-    deptId: firstDefined(original.value.deptId, ownerDefaults.value.deptId),
-    hospitalId: firstDefined(original.value.hospitalId, ownerDefaults.value.hospitalId),
-    attendingDoctor: firstDefined(original.value.attendingDoctor, ownerDefaults.value.attendingDoctor),
-  };
-  const payload = compact({
-    id: props.id ? Number(props.id) : undefined,
-    name: form.name,
-    sex: form.sex,
-    idNumber: form.idNumber,
-    birthday: form.birthday,
-    phone: form.phone,
-    patientNumber: form.patientNumber,
-    admissionNumber: form.admissionNumber,
-    homeAddress: form.homeAddress,
-    deptId: owner.deptId,
-    hospitalId: owner.hospitalId,
-    attendingDoctor: owner.attendingDoctor,
-    guardianList: [
-      compact({
-        id: original.value.guardianList?.[0]?.id,
-        patientId: original.value.guardianList?.[0]?.patientId ?? (props.id ? Number(props.id) : undefined),
-        name: form.guardianName,
-        phone: form.guardianPhone,
-      }, { keepEmpty: isEdit.value }),
-    ],
-  }, { keepEmpty: isEdit.value });
-
-  payload.sickroomNumber = form.sickroomNumber;
-  payload.sickbedNumber = form.sickbedNumber;
-  return compact(payload, { keepEmpty: isEdit.value });
+  return buildPatientPayload({
+    form,
+    original: original.value,
+    patientId: props.id,
+    ownerDefaults: ownerDefaults.value,
+    isEdit: isEdit.value,
+  });
 }
 
 async function load() {

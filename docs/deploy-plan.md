@@ -1,6 +1,6 @@
 # pc-rebuild 灰度部署方案
 
-本方案只作为发布操作文档示例。执行前必须由发布负责人复核，本文中的 `ssh`、`rsync`、`sudo`、`nginx` 命令均不得在本地修复或审计阶段执行。
+本方案只作为发布操作文档示例。执行前必须由发布负责人复核，本文中的 `ssh`、`rsync`、`sudo`、`nginx` 命令均不得在本地修复或审计阶段执行。Codex 不得执行生产部署，不得调用真实生产写接口；正式上线前禁止使用 Codex 自动部署。
 
 禁止直接覆盖生产前端目录 `/srv/oca-source/opt/html`。灰度发布必须使用独立 release 目录和 `current` 软链接，通过 `/pc-rebuild/` 路径访问。
 
@@ -13,9 +13,15 @@
 - 受限写入灰度不是正式上线，不得扩大到真实业务患者或全量写入。
 - 不得将真实 allow-list id、账号、患者姓名、身份证、手机号、token 或生产验证细节提交到仓库。
 
+## 0.1 准入分层
+
+自动化准入由源码仓库完成，包含 `npm run verify`、CI、sensitive scan、API boundary、build output 校验、mock 契约测试和 release readiness JSON 报告。自动化准入只能证明当前源码候选包满足本地工程 gate。
+
+人工/外部准入必须由发布负责人、后端负责人和小程序负责人完成，包含后端契约、小程序 payload、备份、回滚演练、账号权限、变更窗口和生产审批。无人工参与时，不得把 mock 契约测试解释成真实接口契约已确认。
+
 ## 1. 本地构建要求
 
-生产灰度路径必须构建为 `/pc-rebuild/` base，路由必须使用 `createWebHistory(import.meta.env.BASE_URL)`。
+生产灰度路径必须构建为 `/pc-rebuild/` base，路由必须使用 `createWebHistory(import.meta.env.BASE_URL)`。以下命令只用于发布负责人在授权环境中参考，Codex 不得执行。
 
 ```bash
 cd /Users/w5/codex/老年评估/pc-rebuild
@@ -29,7 +35,7 @@ VITE_APP_BASE=/pc-rebuild/ VITE_READONLY=true npm run build
 
 ## 2. 服务器备份
 
-示例命令如下，仅供发布时参考：
+示例命令如下，仅供发布负责人在变更窗口参考，Codex 不得执行：
 
 ```bash
 ssh <user>@<server> 'set -e
@@ -54,7 +60,7 @@ sudo ls -lh /srv/oca-source/backups/html-$ts.tar.gz /srv/oca-source/backups/ngin
   current -> /srv/oca-source/opt/pc-rebuild/releases/20260522153000
 ```
 
-示例命令：
+示例命令如下，仅供发布负责人在变更窗口参考，Codex 不得执行：
 
 ```bash
 ts=$(date +%Y%m%d%H%M%S)
@@ -81,7 +87,7 @@ location ^~ /prod-api/ {
 }
 ```
 
-示例命令：
+示例命令如下，仅供发布负责人在变更窗口参考，Codex 不得执行：
 
 ```bash
 ssh <user>@<server> 'sudo nginx -t'
@@ -111,7 +117,7 @@ curl -fsSI https://<domain>/pc-rebuild/patients/<patient-id>
 
 ## 5.1 写入灰度准入
 
-写入灰度不得复用只读灰度包，必须重新构建并确认页面顶部提示为“当前允许写入生产 API”。写入包必须配置 allow-list，否则页面仍可登录和读取，但所有业务写入都会中止并提示“写入灰度未配置 allow-list，禁止写入”。
+写入灰度不得复用只读灰度包，必须重新构建并确认页面顶部提示为“当前允许写入生产 API”。写入包必须配置 allow-list，否则页面仍可登录和读取，但所有业务写入都会中止并提示“写入灰度未配置 allow-list，禁止写入”。Codex 不得构建或验证包含真实 allow-list id 的写入包。
 
 示例命令中的 id 均为占位符，真实 id 只能由发布负责人在构建环境中临时注入，不得写入源码、文档或提交记录：
 
@@ -158,7 +164,7 @@ npm run build
 1. 本地 `npm run verify` 通过。
 2. 只读灰度验证完成，读链路、路由刷新、静态资源和只读 guard 均通过。
 3. 受限写入灰度验证完成，且仅覆盖 allow-list 中的授权测试患者、测试评估和测试报告。
-4. 以下接口契约已由后端和小程序负责人完成人工确认：
+4. 以下接口契约已由后端和小程序负责人完成人工确认；当前仓库中的 mock fixtures 只用于自动化契约预期，不代表真实生产接口已确认：
    - `getInfo` 归属字段语义。
    - `getBase(patientId)` 是否稳定返回 `outpatientId`。
    - `getBaseMedications(patientId)` 是患者级还是评估级。

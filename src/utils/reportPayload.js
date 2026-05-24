@@ -12,6 +12,11 @@ function findOption(row = {}, optionId) {
   return (row.options || []).find((entry) => String(entry.id) === String(optionId)) || null;
 }
 
+function normalizeOptionId(optionId) {
+  const number = Number(optionId);
+  return Number.isNaN(number) ? optionId : number;
+}
+
 export function isAssessmentSubmitted(state) {
   // 后端评估 state === 1 表示整次评估已提交。
   return Number(state) === 1;
@@ -46,14 +51,18 @@ export function buildQuestionPayload(questions = []) {
     const selectedOptionId = selectedOptionIdOf(item);
     if (Number(item.type) === 0 && hasAnswerValue(selectedOptionId)) {
       const option = findOption(item, selectedOptionId);
+      if (!option) {
+        throw new Error('量表选项数据异常，已禁止保存：所选选项不在当前题目选项列表中。');
+      }
       row.checkItem = {
         questionId: item.id,
-        // optionId 当前按后端正整数处理；这里仍保留 0 或字符串数字，避免前端误丢合法值。
-        optionId: Number(selectedOptionId),
-        score: option ? Number(option.optionScore ?? option.score ?? 0) : 0,
+        // optionId 当前生产接口按数字处理；测试契约允许字符串 mock id，0 也不能被误判为空。
+        optionId: normalizeOptionId(selectedOptionId),
+        score: Number(option.optionScore ?? option.score ?? 0),
         question: item.content,
       };
     } else if (hasAnswerValue(item.inputValue)) {
+      // 当前仅固定单选题 type=0；其他题型只在有 inputValue 时按输入题提交。多选、矩阵等特殊题型需后端契约确认后再开放。
       row.checkItem = {
         questionId: item.id,
         input: item.inputValue,

@@ -1,0 +1,17 @@
+{
+  "id": "base-allow-1",
+  "patientId": "patient-allow-1",
+  "outpatientId": "outpatient-allow-1",
+  "tableId": "base-table-1",
+  "nativePlace": "Mock Place",
+  "height": 170,
+  "weight": 65,
+  "msList": [
+    {
+      "medication": "Mock Medication",
+      "dose": "mock-dose",
+      "frequency": "mock-frequency",
+      "way": "mock-way"
+    }
+  ]
+}

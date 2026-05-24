@@ -49,8 +49,9 @@
 import { onMounted, reactive, ref } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { getFollowUps, updateVisitor } from '../api/oca.js';
-import { assertPatientWriteAllowed, isReadOnlyMode, writeDisabledMessage } from '../config/runtime.js';
+import { allowedPatientIds, assertPatientWriteAllowed, isReadOnlyMode, writeDisabledMessage } from '../config/runtime.js';
 import { dateText, sexText } from '../format.js';
+import { decideFollowupWritable } from '../utils/followupGuard.js';
 
 const loading = ref(false);
 const rows = ref([]);
@@ -71,13 +72,19 @@ async function load() {
 }
 
 async function changeVisitor(row, value) {
-  if (isReadOnlyMode) {
-    ElMessage.warning(writeDisabledMessage);
+  const guard = decideFollowupWritable({
+    isReadOnly: isReadOnlyMode,
+    patientId: row.id,
+    allowedPatientIds,
+    readOnlyMessage: writeDisabledMessage,
+  });
+  if (!guard.allowed) {
+    ElMessage.warning(guard.reason);
     return;
   }
   try {
     assertPatientWriteAllowed(row.id, '当前患者不在写入灰度 allow-list，禁止修改回访状态');
-    await ElMessageBox.confirm('将写入生产 API，仅限测试患者。确认修改当前患者回访状态？', '写入灰度确认', {
+    await ElMessageBox.confirm(guard.confirmMessage, '写入灰度确认', {
       confirmButtonText: '确认写入',
       cancelButtonText: '取消',
       type: 'warning',

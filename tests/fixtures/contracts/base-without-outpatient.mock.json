@@ -1,0 +1,14 @@
+{
+  "id": "base-missing-outpatient-1",
+  "patientId": "patient-allow-1",
+  "tableId": "base-table-1",
+  "nativePlace": "Mock Place",
+  "msList": [
+    {
+      "medication": "Mock Medication",
+      "dose": "mock-dose",
+      "frequency": "mock-frequency",
+      "way": "mock-way"
+    }
+  ]
+}

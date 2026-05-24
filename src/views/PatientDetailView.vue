@@ -5,6 +5,14 @@
         <el-button link @click="$router.back()">返回</el-button>
         <div>
           <el-button @click="openBase(checks[0] || {})">一般情况表</el-button>
+          <el-button
+            v-if="showTestAssessmentCreate"
+            type="warning"
+            :loading="creatingTestAssessment"
+            @click="createTestAssessment"
+          >
+            创建测试评估
+          </el-button>
           <el-tooltip :disabled="!isReadOnlyMode" :content="writeDisabledMessage" placement="top">
             <span>
               <el-button type="primary" :disabled="isReadOnlyMode" @click="$router.push(`/patients/${props.id}/edit`)">编辑患者</el-button>
@@ -233,6 +241,7 @@
 import { computed, defineComponent, h, onMounted, reactive, ref, resolveComponent, watch } from 'vue';
 import { ElMessage } from 'element-plus';
 import {
+  createAssessment,
   getAssessmentTables,
   getBase,
   getBaseMedications,
@@ -248,9 +257,13 @@ import {
   assertOutpatientWriteAllowed,
   assertPatientWriteAllowed,
   assertReportWriteAllowed,
+  allowSessionWriteIds,
   baseWriteDisabledMessage,
+  hasPatientWriteId,
   isBaseWriteEnabled,
   isReadOnlyMode,
+  isWriteEnabled,
+  rememberWriteAllowIds,
   writeDisabledMessage,
 } from '../config/runtime.js';
 import { emptyMedicine, normalizeMsList } from '../utils/basePayload.js';
@@ -289,6 +302,7 @@ const FUNCTION_OPTIONS = [
   { dictLabel: '下降，但不影响生活', dictValue: 2 },
   { dictLabel: '下降，影响生活', dictValue: 3 },
 ];
+const TEST_ASSESSMENT_TABLES = [102];
 
 const DictSelect = defineComponent({
   props: {
@@ -346,6 +360,7 @@ const previewLoading = ref(false);
 const previewVisit = ref({});
 const previewTables = ref([]);
 const previewBedNo = ref('');
+const creatingTestAssessment = ref(false);
 const dicts = reactive({
   medicalInsuranceType: [],
   degree: [],
@@ -369,6 +384,9 @@ const dicts = reactive({
 const baseForm = reactive(defaultBaseForm());
 
 const checks = computed(() => patient.value.checkList || []);
+const showTestAssessmentCreate = computed(
+  () => allowSessionWriteIds && isWriteEnabled && hasPatientWriteId(props.id),
+);
 
 function mapTable(item) {
   const table = item.checkTable || {};
@@ -425,6 +443,28 @@ async function openAssessment(row) {
     ElMessage.error(error.message || '加载量表失败');
   } finally {
     assessmentLoading.value = false;
+  }
+}
+
+async function createTestAssessment() {
+  if (!showTestAssessmentCreate.value) {
+    ElMessage.warning('当前患者不在写入测试范围，禁止创建测试评估。');
+    return;
+  }
+  creatingTestAssessment.value = true;
+  try {
+    const outpatientId = await createAssessment(props.id, TEST_ASSESSMENT_TABLES);
+    const result = await getAssessmentTables(outpatientId);
+    rememberWriteAllowIds({
+      outpatientIds: [outpatientId],
+      reportIds: (result.list || []).map((item) => item.id || item.reportId).filter(Boolean),
+    });
+    await load();
+    ElMessage.success('测试评估已创建');
+  } catch (error) {
+    ElMessage.error(error.message || '创建测试评估失败');
+  } finally {
+    creatingTestAssessment.value = false;
   }
 }
 

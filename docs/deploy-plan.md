@@ -143,6 +143,14 @@ VITE_WRITE_ALLOW_REPORT_IDS=<report-id> \
 npm run build
 ```
 
+如需做完整流程测试，可额外启用测试会话 allow-list：
+
+```bash
+VITE_ENABLE_SESSION_WRITE_ALLOWLIST=true
+```
+
+该开关只允许受限写入测试包把“本会话刚新增的测试患者”和“本会话创建的测试评估/测试报告”加入浏览器会话 allow-list，并在患者详情页显示“创建测试评估”按钮。它不得用于默认 `formal-candidate` 构建，不得与真实业务患者混用，也不得把真实 allow-list id 写入源码或文档。
+
 如需验证新增患者，还必须额外显式设置 `VITE_ALLOW_CREATE_PATIENT=true`。默认即使开启 `VITE_ENABLE_PROD_WRITES=true`，也禁止新增患者。
 
 写入灰度只允许覆盖以下最小范围：

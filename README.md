@@ -64,6 +64,8 @@ npm run verify
 
 默认 `npm run verify` 生成的是只读 `formal-candidate` 自动化准入结果。若构建环境设置了 `VITE_ENABLE_PROD_WRITES=true` 但没有同时设置 `VITE_RELEASE_PROFILE=restricted-write-gray`，构建产物检查和 release readiness 会失败，避免写入灰度包被误当作正式上线评审候选包。
 
+受限写入灰度可以用于完整业务流程测试，但必须与正式候选包分离。测试包可额外设置 `VITE_ENABLE_SESSION_WRITE_ALLOWLIST=true`，使本会话刚新增的测试患者继续允许编辑，并在患者详情页显示“创建测试评估”测试按钮；该能力只能用于受控测试入口和脱敏测试样本，不能作为正式上线候选能力提交。一般情况表和当前用药仍保持 PC 只读，修改继续走平板/小程序。
+
 生成评审证据包时运行：
 
 ```bash
@@ -102,6 +104,7 @@ npm run release:cross-system:markdown
 - 默认启用只读保护，包括本地 dev 和生产构建；除登录外，业务写请求默认会被拦截。
 - 如需受限写入灰度，必须经发布负责人确认后显式设置 `VITE_ENABLE_PROD_WRITES=true`，且只应使用明确的 `<test-patient>` 和未提交测试评估；一般情况表和当前用药仍保持只读。
 - 受限写入灰度必须配置 allow-list：`VITE_WRITE_ALLOW_PATIENT_IDS`、`VITE_WRITE_ALLOW_OUTPATIENT_IDS`、`VITE_WRITE_ALLOW_REPORT_IDS`。
+- 全流程测试入口如启用 `VITE_ENABLE_SESSION_WRITE_ALLOWLIST=true`，只允许本会话内由测试包创建的测试患者、测试评估和测试报告继续写入，不得扩大为真实业务患者通用写入。
 - 新增患者默认禁止；如需验证新增，必须显式设置 `VITE_ALLOW_CREATE_PATIENT=true`，并确认线上运行包与恢复材料中的归属字段语义一致。
 - 不得提交真实 allow-list id、真实账号、患者姓名、身份证、手机号、token 或生产验证细节。
 - 新增患者归属字段已按恢复后端确认从当前用户/部门信息推导；无法推导时会停止新增。

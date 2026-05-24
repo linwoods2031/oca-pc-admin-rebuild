@@ -1,7 +1,25 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import { createRuntimeConfig, createWriteGuards, hasId, parseIdList } from './runtime.js';
 
 describe('runtime config', () => {
+  const originalWindow = globalThis.window;
+
+  afterEach(() => {
+    globalThis.window = originalWindow;
+  });
+
+  function mockSessionStorage(seed = {}) {
+    const store = { ...seed };
+    globalThis.window = {
+      sessionStorage: {
+        getItem: (key) => store[key] || '',
+        setItem: (key, value) => {
+          store[key] = String(value);
+        },
+      },
+    };
+  }
+
   it('parses comma-separated allow-list ids', () => {
     expect(parseIdList(' patient-allow-1,outpatient-allow-1, ,report-allow-1 ')).toEqual([
       'patient-allow-1',
@@ -64,6 +82,32 @@ describe('runtime config', () => {
     expect(() => guards.assertOutpatientWriteAllowed('outpatient-blocked-1')).toThrow('当前评估不在写入灰度 allow-list，禁止写入');
     expect(() => guards.assertReportWriteAllowed('report-allow-1')).not.toThrow();
     expect(() => guards.assertReportWriteAllowed('report-blocked-1')).toThrow('当前量表报告不在写入灰度 allow-list，禁止写入');
+  });
+
+  it('allows test-session ids only when the explicit session allow-list flag is enabled', () => {
+    mockSessionStorage({
+      'oca-pc-session-write-patient-ids': 'patient-created-1',
+      'oca-pc-session-write-outpatient-ids': 'outpatient-created-1',
+      'oca-pc-session-write-report-ids': 'report-created-1',
+    });
+    const sessionGuards = createWriteGuards(
+      createRuntimeConfig({
+        VITE_ENABLE_PROD_WRITES: 'true',
+        VITE_ENABLE_SESSION_WRITE_ALLOWLIST: 'true',
+        VITE_WRITE_ALLOW_PATIENT_IDS: 'patient-bootstrap-1',
+      }),
+    );
+    const staticOnlyGuards = createWriteGuards(
+      createRuntimeConfig({
+        VITE_ENABLE_PROD_WRITES: 'true',
+        VITE_WRITE_ALLOW_PATIENT_IDS: 'patient-bootstrap-1',
+      }),
+    );
+
+    expect(() => sessionGuards.assertPatientWriteAllowed('patient-created-1')).not.toThrow();
+    expect(() => sessionGuards.assertOutpatientWriteAllowed('outpatient-created-1')).not.toThrow();
+    expect(() => sessionGuards.assertReportWriteAllowed('report-created-1')).not.toThrow();
+    expect(() => staticOnlyGuards.assertPatientWriteAllowed('patient-created-1')).toThrow('allow-list');
   });
 
   it('blocks patient creation unless explicitly enabled', () => {

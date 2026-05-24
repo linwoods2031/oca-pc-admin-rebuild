@@ -88,8 +88,7 @@ import {
   assertCreatePatientAllowed,
   assertPatientWriteAllowed,
   allowCreatePatient,
-  allowedPatientIds,
-  hasId,
+  hasPatientWriteId,
   isAllowListEnabled,
   isReadOnlyMode,
   isWriteEnabled,
@@ -116,7 +115,7 @@ const ownerDefaultsComplete = computed(() =>
 const saveDisabledReason = computed(() => {
   if (isReadOnlyMode) return writeDisabledMessage;
   if (isWriteEnabled && !isAllowListEnabled) return writeGuardMessage;
-  if (isEdit.value && !hasId(allowedPatientIds, props.id)) return '当前患者不在写入灰度 allow-list，禁止编辑患者';
+  if (isEdit.value && !hasPatientWriteId(props.id)) return '当前患者不在写入灰度 allow-list，禁止编辑患者';
   if (!isEdit.value && !allowCreatePatient) return '写入灰度默认禁止新增患者，必须显式设置 VITE_ALLOW_CREATE_PATIENT=true';
   if (!isEdit.value && allowCreatePatient && !ownerDefaultsReady.value) return '正在确认患者归属字段，请稍后再保存。';
   if (!isEdit.value && allowCreatePatient && ownerDefaultsReady.value && !ownerDefaultsComplete.value) {

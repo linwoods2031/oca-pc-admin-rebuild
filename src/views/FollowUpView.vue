@@ -49,7 +49,13 @@
 import { onMounted, reactive, ref } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { getFollowUps, updateVisitor } from '../api/oca.js';
-import { allowedPatientIds, assertPatientWriteAllowed, isReadOnlyMode, writeDisabledMessage } from '../config/runtime.js';
+import {
+  allowedPatientIds,
+  assertPatientWriteAllowed,
+  hasPatientWriteId,
+  isReadOnlyMode,
+  writeDisabledMessage,
+} from '../config/runtime.js';
 import { dateText, sexText } from '../format.js';
 import { decideFollowupWritable } from '../utils/followupGuard.js';
 
@@ -76,6 +82,7 @@ async function changeVisitor(row, value) {
     isReadOnly: isReadOnlyMode,
     patientId: row.id,
     allowedPatientIds,
+    isPatientAllowed: hasPatientWriteId(row.id),
     readOnlyMessage: writeDisabledMessage,
   });
   if (!guard.allowed) {

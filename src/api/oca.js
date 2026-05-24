@@ -5,6 +5,7 @@ import {
   assertOutpatientWriteAllowed,
   assertPatientWriteAllowed,
   assertReportWriteAllowed,
+  rememberWriteAllowIds,
 } from '../config/runtime.js';
 
 function cleanParams(params = {}) {
@@ -31,7 +32,11 @@ export function getPatient(id) {
 
 export function addPatient(payload) {
   assertCreatePatientAllowed();
-  return internalApi.post('/patient/archive/add', payload);
+  return internalApi.post('/patient/archive/add', payload).then((result) => {
+    const createdId = typeof result === 'number' || typeof result === 'string' ? result : result?.id;
+    if (createdId) rememberWriteAllowIds({ patientIds: [createdId] });
+    return result;
+  });
 }
 
 export function updatePatient(payload) {
@@ -85,6 +90,14 @@ export function getDict(dictType) {
 
 export function getAssessmentTables(outpatientId) {
   return internalApi.get(`/outpatient/check/tables/pc`, { params: { outpatientId } });
+}
+
+export function createAssessment(patientId, checkTables = []) {
+  assertPatientWriteAllowed(patientId, '当前患者不在写入灰度 allow-list，禁止创建测试评估');
+  return internalApi.post('/outpatient/check/add', { patientId, checkTables }).then((outpatientId) => {
+    if (outpatientId) rememberWriteAllowIds({ outpatientIds: [outpatientId] });
+    return outpatientId;
+  });
 }
 
 export function getQuestionReport(tableId, reportId) {

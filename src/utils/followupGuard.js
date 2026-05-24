@@ -6,13 +6,15 @@ export function decideFollowupWritable({
   isReadOnly,
   patientId,
   allowedPatientIds = [],
+  isPatientAllowed,
   readOnlyMessage,
   notAllowedMessage = '当前患者不在写入灰度 allow-list，禁止修改回访状态',
 } = {}) {
   if (isReadOnly) {
     return { allowed: false, reason: readOnlyMessage };
   }
-  if (!hasId(allowedPatientIds, patientId)) {
+  const allowed = isPatientAllowed ?? hasId(allowedPatientIds, patientId);
+  if (!allowed) {
     return { allowed: false, reason: notAllowedMessage };
   }
   return { allowed: true, reason: '', confirmMessage: followupWriteConfirmMessage };

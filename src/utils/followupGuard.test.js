@@ -33,6 +33,17 @@ describe('followup guard', () => {
     ).toBe(true);
   });
 
+  it('allows a caller-provided test-session allow decision', () => {
+    expect(
+      decideFollowupWritable({
+        isReadOnly: false,
+        patientId: 'patient-created-1',
+        allowedPatientIds: [],
+        isPatientAllowed: true,
+      }).allowed,
+    ).toBe(true);
+  });
+
   it('uses a production write warning for the confirmation text', () => {
     expect(followupWriteConfirmMessage).toContain('写入生产 API，仅限测试患者');
   });

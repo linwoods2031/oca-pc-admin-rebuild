@@ -446,6 +446,19 @@ async function openAssessment(row) {
   }
 }
 
+function ensureSessionAssessmentRow(outpatientId) {
+  if (!outpatientId) return;
+  const checkList = Array.isArray(patient.value.checkList) ? [...patient.value.checkList] : [];
+  if (checkList.some((item) => String(item?.id) === String(outpatientId))) return;
+  checkList.unshift({
+    id: outpatientId,
+    state: 0,
+    visitDate: new Date().toISOString(),
+    createTime: new Date().toISOString(),
+  });
+  patient.value = { ...patient.value, checkList };
+}
+
 async function createTestAssessment() {
   if (!showTestAssessmentCreate.value) {
     ElMessage.warning('当前患者不在写入测试范围，禁止创建测试评估。');
@@ -460,6 +473,8 @@ async function createTestAssessment() {
       reportIds: (result.list || []).map((item) => item.id || item.reportId).filter(Boolean),
     });
     await load();
+    // 当前恢复后端的患者详情接口可能不回显本次未提交评估；本会话测试创建后补一条临时行，便于继续量表填写。
+    ensureSessionAssessmentRow(outpatientId);
     ElMessage.success('测试评估已创建');
   } catch (error) {
     ElMessage.error(error.message || '创建测试评估失败');

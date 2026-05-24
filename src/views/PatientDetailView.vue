@@ -230,7 +230,7 @@
 </template>
 
 <script setup>
-import { computed, defineComponent, h, onMounted, reactive, ref, resolveComponent } from 'vue';
+import { computed, defineComponent, h, onMounted, reactive, ref, resolveComponent, watch } from 'vue';
 import { ElMessage } from 'element-plus';
 import {
   getAssessmentTables,
@@ -392,6 +392,25 @@ async function load() {
   } finally {
     loading.value = false;
   }
+}
+
+function resetTransientState() {
+  assessmentOpen.value = false;
+  reportOpen.value = false;
+  baseOpen.value = false;
+  previewOpen.value = false;
+  currentOutpatientId.value = null;
+  currentAssessmentState.value = null;
+  tables.value = [];
+  reportRows.value = [];
+  reportMeta.value = {};
+  baseOutpatientId.value = null;
+  baseAssessmentState.value = null;
+  baseAssociationWarning.value = '';
+  previewVisit.value = {};
+  previewTables.value = [];
+  previewBedNo.value = '';
+  Object.assign(baseForm, defaultBaseForm());
 }
 
 async function openAssessment(row) {
@@ -680,4 +699,11 @@ function answerText(row) {
 }
 
 onMounted(load);
+watch(
+  () => props.id,
+  () => {
+    resetTransientState();
+    load();
+  },
+);
 </script>

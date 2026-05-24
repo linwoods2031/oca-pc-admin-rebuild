@@ -188,6 +188,7 @@ export function buildReleaseEvidence({ root = process.cwd(), env = process.env, 
       readinessAutomatedGates: readiness.automatedGates,
       githubActions,
     },
+    confirmedRecoveredContracts: readiness.confirmedRecoveredContracts || [],
     safetyAssertions: {
       productionActionsExecuted: false,
       realWriteApiCalled: false,
@@ -223,6 +224,18 @@ export function renderMarkdownEvidence(evidence) {
     `- Formal review candidate: ${evidence.decision.submitFormalReviewCandidate ? 'yes' : 'no'}`,
     `- Direct production launch allowed: ${evidence.decision.directProductionLaunchAllowed ? 'yes' : 'no'}`,
     '',
+    ...(evidence.confirmedRecoveredContracts?.length
+      ? [
+          '## Confirmed Recovered Contracts',
+          '',
+          ...evidence.confirmedRecoveredContracts.flatMap((item) => [
+            `- ${item.name}: ${item.status}`,
+            `  Scope: ${item.scope}`,
+            `  Residual risk: ${item.residualRisk}`,
+          ]),
+          '',
+        ]
+      : []),
     '## Required External Evidence',
     '',
     ...evidence.manualEvidenceRequests.flatMap((item) => [

@@ -174,8 +174,7 @@ npm run build
 4. 正式评审候选构建保持默认 `VITE_RELEASE_PROFILE=formal-candidate`，且未设置 `VITE_ENABLE_PROD_WRITES=true`。
 5. 只读灰度验证完成，读链路、路由刷新、静态资源和只读 guard 均通过。
 6. 受限写入灰度验证完成，且仅覆盖 allow-list 中的授权测试患者、测试评估和测试报告；该写入灰度包必须标记为 `VITE_RELEASE_PROFILE=restricted-write-gray`，不得冒充正式评审候选包。
-7. 以下接口契约已由后端和小程序负责人完成人工确认；当前仓库中的 mock fixtures 只用于自动化契约预期，不代表真实生产接口已确认：
-   - `getInfo` 归属字段语义。
+7. 以下接口契约已由后端和小程序负责人完成人工确认；当前仓库中的 mock fixtures 只用于自动化契约预期，不代表真实生产接口已确认。患者归属字段已从恢复后端和小程序壳反查确认，见 `docs/recovered-contracts.md`：
    - `getBase(patientId)` 是否稳定返回 `outpatientId`。
    - `getBaseMedications(patientId)` 是患者级还是评估级。
    - `editCheckReport` payload 是否与小程序一致。

@@ -67,13 +67,22 @@ export function buildReleaseReadinessReport({ root = process.cwd(), env = proces
           : 'This package is expected to remain readonly by default and may be considered by automated gates as a formal review candidate only when all gates pass.',
     },
     automatedGates,
-    requiredManualContracts: [
+    confirmedRecoveredContracts: [
       {
-        name: 'getInfo ownership fields',
-        status: 'required_external_confirmation',
-        blocksDirectLaunch: true,
-        risk: 'Patient create/edit owner fields must be confirmed by backend ownership semantics.',
+        name: 'patient archive ownership fields',
+        status: 'confirmed_by_recovered_backend_artifacts',
+        scope: 'deptId, hospitalId, attendingDoctor for patient create/edit',
+        evidence: [
+          'Recovered PatientArchiveServiceImpl.addPatient sets missing deptId from SecurityUtils.getDeptId().',
+          'Recovered PatientArchiveServiceImpl.addPatient sets missing attendingDoctor from createUser/sys_user.user_id.',
+          'Recovered PatientArchiveServiceImpl.addPatient sets hospitalId from LoginUser.getHospital().',
+          'Recovered PatientArchiveController resolves doctorName with userService.selectUserById(attendingDoctor).',
+          'Accepted mini program shell submits configured dept, hospital, and doctor user ids for patient create/edit.',
+        ],
+        residualRisk: 'Server artifact parity must still be checked during deployment evidence, but this is no longer an unknown payload contract.',
       },
+    ],
+    requiredManualContracts: [
       {
         name: 'getBase patientId/outpatientId semantics',
         status: 'required_external_confirmation',

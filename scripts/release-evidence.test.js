@@ -100,6 +100,14 @@ describe('release-evidence', () => {
         expectedLocalCommand: 'npm run verify',
         githubActions: { workflowName: 'Verify frontend safety gates', conclusion: 'success', url: null },
       },
+      confirmedRecoveredContracts: [
+        {
+          name: 'patient archive ownership fields',
+          status: 'confirmed_by_recovered_backend_artifacts',
+          scope: 'mock scope',
+          residualRisk: 'server parity still needs deployment evidence',
+        },
+      ],
       decision: {
         githubActionsPassed: true,
         localNonTestGatesPassed: true,
@@ -114,6 +122,8 @@ describe('release-evidence', () => {
     });
 
     expect(markdown).toContain('Commit: `mock-sha`');
+    expect(markdown).toContain('Confirmed Recovered Contracts');
+    expect(markdown).toContain('patient archive ownership fields');
     expect(markdown).toContain('Direct production launch allowed: no');
     expect(markdown).toContain('Direct production launch: no');
   });

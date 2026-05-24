@@ -95,6 +95,13 @@ function checkDocs() {
     'npm run verify',
     'release:evidence:verified',
     'directProductionLaunchAllowed=false',
+    'docs/recovered-contracts.md',
+  ]);
+  checkRequiredText('docs/recovered-contracts.md', [
+    '恢复代码契约反查记录',
+    'attendingDoctor',
+    'sys_user.user_id',
+    'fail closed',
   ]);
 }
 

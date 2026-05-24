@@ -17,24 +17,24 @@ const form = {
 };
 
 describe('patient payload helpers', () => {
-  it('infers owner fields using user before dept fallback', () => {
+  it('infers owner fields from recovered backend getInfo shape', () => {
     expect(
       inferArchiveOwner({
         user: {
+          userId: 'user-owner-1',
           deptId: 'dept-user-1',
           hospitalId: 'hospital-user-1',
-          attendingDoctor: 'doctor-user-1',
           dept: { deptId: 'dept-nested-1', hospitalId: 'hospital-nested-1' },
         },
       }),
     ).toEqual({
       deptId: 'dept-user-1',
       hospitalId: 'hospital-user-1',
-      attendingDoctor: 'doctor-user-1',
+      attendingDoctor: 'user-owner-1',
     });
   });
 
-  it('falls back to dept and user ids when owner fields are missing', () => {
+  it('uses nested dept hospital and userId when direct owner fields are missing', () => {
     expect(
       inferArchiveOwner({
         user: {
@@ -46,6 +46,22 @@ describe('patient payload helpers', () => {
       deptId: 'dept-nested-1',
       hospitalId: 'hospital-nested-1',
       attendingDoctor: 'user-mock-1',
+    });
+  });
+
+  it('does not trust non-backend attendingDoctor fields as doctor ownership', () => {
+    expect(
+      inferArchiveOwner({
+        user: {
+          userId: 'user-owner-1',
+          attendingDoctor: 'legacy-doctor-field',
+          dept: { deptId: 'dept-nested-1', hospitalId: 'hospital-nested-1' },
+        },
+      }),
+    ).toEqual({
+      deptId: 'dept-nested-1',
+      hospitalId: 'hospital-nested-1',
+      attendingDoctor: 'user-owner-1',
     });
   });
 

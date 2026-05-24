@@ -23,7 +23,7 @@ describe('mock API contract fixtures', () => {
     expect(inferArchiveOwner(fixture('getInfo.mock.json'))).toEqual({
       deptId: 'dept-mock-1',
       hospitalId: 'hospital-mock-1',
-      attendingDoctor: 'doctor-mock-1',
+      attendingDoctor: 'user-mock-1',
     });
   });
 

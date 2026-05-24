@@ -24,14 +24,20 @@ npm run release:evidence:verified:markdown
 - `realWriteApiCalled=false`。
 - `deploymentExecuted=false`。
 - `directProductionLaunchAllowed=false`。
+- 已从恢复代码反查确认的契约，例如患者归属字段。
 
 默认 `formal-candidate` 必须是只读候选包。受限写入灰度包必须使用 `VITE_RELEASE_PROFILE=restricted-write-gray`，只能作为 allow-list 测试患者验证证据，不能作为正式上线评审候选包。
 
 ## 外部证据
 
+## 已反查确认的契约
+
+患者归属字段已经通过恢复后端 JAR、Mapper、数据库结构和已认可小程序壳反查确认，记录见 `docs/recovered-contracts.md`。该项不再作为未知 payload 契约要求人工确认；正式发布时仍需确认服务器运行包与本地恢复材料一致。
+
+## 外部证据
+
 以下项目必须由发布负责人、后端负责人或小程序负责人补充脱敏证据，不得包含真实账号、真实患者信息、真实 allow-list id、token 或生产验证细节：
 
-- `getInfo ownership fields`：确认患者新增/编辑归属字段语义。
 - `getBase patientId/outpatientId semantics`：确认一般情况表与当前评估的归属关系。
 - `getBaseMedications scope`：确认用药列表是患者级还是评估级。
 - `editCheckReport payload compatibility with mini program`：确认量表 payload 与小程序/后端契约一致。

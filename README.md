@@ -73,6 +73,8 @@ npm run release:evidence:verified:markdown
 
 证据包会汇总 commit、发布档位、自动化 gate、GitHub Actions 状态和仍需外部确认的事项。动态证据只用于评审单附件，不提交到仓库；模板说明见 `docs/release-evidence.md`。
 
+患者新增/编辑的归属字段已按恢复后端和已认可小程序壳完成反查，`attendingDoctor` 明确按 `sys_user.user_id` 处理；记录见 `docs/recovered-contracts.md`。
+
 正式上线不是只靠前端决定，还需要完成：
 
 - 后端接口契约确认。

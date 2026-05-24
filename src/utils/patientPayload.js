@@ -16,8 +16,8 @@ export function inferArchiveOwner(source = {}) {
   return compact({
     deptId: firstDefined(user.deptId, dept?.deptId, dept?.id),
     hospitalId: firstDefined(user.hospitalId, dept?.hospitalId, source.hospitalId),
-    // attendingDoctor 由 user.attendingDoctor 优先，其次退回 userId/id；该退回语义仍需后端确认。
-    attendingDoctor: firstDefined(user.attendingDoctor, user.userId, user.id),
+    // Recovered backend uses oca_patient_archive.attending_doctor as sys_user.user_id.
+    attendingDoctor: firstDefined(user.userId),
   });
 }
 

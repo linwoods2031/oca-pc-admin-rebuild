@@ -21,7 +21,7 @@
 
 构建包还必须声明或继承发布档位：默认 `VITE_RELEASE_PROFILE=formal-candidate`，且必须是只读构建；受限写入灰度包必须单独设置 `VITE_RELEASE_PROFILE=restricted-write-gray` 和 `VITE_ENABLE_PROD_WRITES=true`，只能用于 allow-list 测试患者验证，不能作为正式上线评审候选包。
 
-评审前应生成发布证据包：`npm run release:evidence:verified` 会先执行完整 `verify` 再输出机器可读 JSON，`npm run release:evidence:verified:markdown` 输出可附到评审单的 Markdown。动态证据不提交仓库，证据格式见 `docs/release-evidence.md`。
+评审前应生成发布证据包：`npm run release:evidence:verified` 会先执行完整 `verify` 再输出机器可读 JSON，`npm run release:evidence:verified:markdown` 输出可附到评审单的 Markdown。最终 `submitFormalReviewCandidate=true` 必须同时满足干净工作树、本地 verified 命令通过和 GitHub Actions `Verify frontend safety gates` 成功；只有单边证据或未提交改动时不得提交为完整正式评审候选。动态证据不提交仓库，证据格式见 `docs/release-evidence.md`。
 
 ## 1. 本地构建要求
 

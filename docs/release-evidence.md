@@ -10,7 +10,7 @@ npm run release:evidence:verified
 npm run release:evidence:verified:markdown
 ```
 
-`release:evidence:verified` 会先执行完整 `npm run verify`，通过后才生成 JSON；`release:evidence:verified:markdown` 会生成可附到评审单的 Markdown。如果本机没有 GitHub CLI 或没有仓库读取权限，可以先运行 `npm run release:evidence` 生成本地 JSON，再由发布负责人附加 GitHub Actions 页面中的 `Verify frontend safety gates` 结果。
+`release:evidence:verified` 会先执行完整 `npm run verify`，通过后才生成 JSON；`release:evidence:verified:markdown` 会生成可附到评审单的 Markdown。最终 `submitFormalReviewCandidate=true` 必须同时满足干净工作树、本地 verified 命令通过和 GitHub Actions `Verify frontend safety gates` 成功。如果本机没有 GitHub CLI 或没有仓库读取权限，可以先运行 `npm run release:evidence` 生成本地 JSON，但最终正式评审候选字段会保持 false，直到发布负责人补齐 CI 成功证据。
 
 ## 自动化证据
 
@@ -20,6 +20,7 @@ npm run release:evidence:verified:markdown
 - `VITE_RELEASE_PROFILE` 发布档位。
 - `npm run verify` 对应的自动化 gate 状态。
 - GitHub Actions 的 `Verify frontend safety gates` 运行状态，前提是使用 `release:evidence:github`。
+- 本地候选、CI 候选、最终候选三个字段；最终候选必须干净工作树、本地和 CI 同时通过。
 - `productionActionsExecuted=false`。
 - `realWriteApiCalled=false`。
 - `deploymentExecuted=false`。
@@ -55,7 +56,7 @@ npm run release:evidence:verified:markdown
 
 1. `npm run verify` 通过。
 2. GitHub Actions `Verify frontend safety gates` 通过。
-3. `release:evidence` 中 `submitFormalReviewCandidate=true`。
+3. `release:evidence:verified` 或等价证据包中 `cleanWorktree=true`、`submitFormalReviewCandidateLocal=true`、`submitFormalReviewCandidateCi=true`、`submitFormalReviewCandidate=true`。
 4. 所有外部证据已由负责人补齐。
 
 即使以上条件全部满足，`directProductionLaunchAllowed` 仍必须是 `false`，最终正式上线只能由发布负责人按变更单执行。

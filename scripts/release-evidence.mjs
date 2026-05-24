@@ -128,22 +128,32 @@ export function buildReleaseDecision({ readiness, githubActions }) {
   const localAutomatedPass = localGatePass && unitTestsPassed(readiness);
   const githubStatus = githubActions?.conclusion || 'unknown';
   const githubPass = githubStatus === 'success';
-  const automatedEvidencePass = localAutomatedPass || githubPass;
+  const cleanWorktree = readiness.commit?.dirty === false;
+  const grayEvidencePass = localAutomatedPass || githubPass;
+  const completeAutomatedEvidencePass = localAutomatedPass && githubPass;
+  const submitFormalReviewCandidateLocal = Boolean(readiness.finalGate.codeCandidate && cleanWorktree && localAutomatedPass);
+  const submitFormalReviewCandidateCi = Boolean(readiness.finalGate.codeCandidate && cleanWorktree && githubPass);
 
   return {
+    cleanWorktree,
     localNonTestGatesPassed: localGatePass,
     localAutomatedGatesPassed: localAutomatedPass,
     localUnitTestsStatus: readiness.automatedGates?.unitTests || 'unknown',
     githubActionsPassed: githubPass,
     githubActionsStatus: githubStatus,
-    submitFormalReviewCandidate: Boolean(readiness.finalGate.codeCandidate && automatedEvidencePass),
-    readonlyGrayFeasible: automatedEvidencePass,
-    restrictedWriteGrayFeasible: automatedEvidencePass,
+    completeAutomatedEvidencePassed: completeAutomatedEvidencePass,
+    submitFormalReviewCandidateLocal,
+    submitFormalReviewCandidateCi,
+    submitFormalReviewCandidate: Boolean(readiness.finalGate.codeCandidate && cleanWorktree && completeAutomatedEvidencePass),
+    readonlyGrayFeasible: grayEvidencePass,
+    restrictedWriteGrayFeasible: grayEvidencePass,
     directProductionLaunchAllowed: false,
     evidenceCompleteness: {
-      automatedSourceGates: automatedEvidencePass ? 'complete' : 'blocked',
-      localUnitTests: unitTestsPassed(readiness) ? 'complete' : 'required_or_covered_by_ci',
+      cleanWorktree: cleanWorktree ? 'complete' : 'blocked_dirty_or_unknown_worktree',
+      localSourceGates: localGatePass ? 'complete' : 'blocked',
+      localUnitTests: unitTestsPassed(readiness) ? 'complete' : 'required_run_release_evidence_verified',
       githubActions: githubPass ? 'complete' : 'required_or_attach_external_ci_result',
+      formalReviewEvidence: cleanWorktree && completeAutomatedEvidencePass ? 'complete' : 'blocked_until_clean_local_verify_and_github_actions_pass',
       externalContracts: 'required_external_confirmation',
       productionApproval: 'required_external_approval',
     },
@@ -218,10 +228,15 @@ export function renderMarkdownEvidence(evidence) {
     '## Automated Evidence',
     '',
     `- Local command expected: \`${evidence.verification.expectedLocalCommand}\``,
+    `- Clean worktree: ${statusIcon(evidence.decision.cleanWorktree)}`,
     `- Local non-test gates: ${statusIcon(evidence.decision.localNonTestGatesPassed)}`,
     `- Local unit tests: ${evidence.decision.localUnitTestsStatus}`,
-    `- Complete automated evidence: ${statusIcon(evidence.decision.localAutomatedGatesPassed || evidence.decision.githubActionsPassed)}`,
-    `- Formal review candidate: ${evidence.decision.submitFormalReviewCandidate ? 'yes' : 'no'}`,
+    `- Local verified command: ${statusIcon(evidence.decision.localAutomatedGatesPassed)}`,
+    `- GitHub Actions gate: ${statusIcon(evidence.decision.githubActionsPassed)}`,
+    `- Complete automated evidence: ${statusIcon(evidence.decision.completeAutomatedEvidencePassed)}`,
+    `- Local formal review candidate: ${evidence.decision.submitFormalReviewCandidateLocal ? 'yes' : 'no'}`,
+    `- CI formal review candidate: ${evidence.decision.submitFormalReviewCandidateCi ? 'yes' : 'no'}`,
+    `- Final formal review candidate: ${evidence.decision.submitFormalReviewCandidate ? 'yes' : 'no'}`,
     `- Direct production launch allowed: ${evidence.decision.directProductionLaunchAllowed ? 'yes' : 'no'}`,
     '',
     ...(evidence.confirmedRecoveredContracts?.length
@@ -278,5 +293,5 @@ if (isMain) {
     console.log(JSON.stringify(evidence, null, 2));
   }
 
-  if (evidence.decision.evidenceCompleteness.automatedSourceGates !== 'complete') process.exit(1);
+  if (!evidence.decision.localNonTestGatesPassed) process.exit(1);
 }

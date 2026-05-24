@@ -36,6 +36,7 @@ describe('release-evidence', () => {
         buildOutput: { status: 'pass' },
         unitTests: 'pass',
       },
+      commit: { dirty: false },
       finalGate: { codeCandidate: true },
     };
 
@@ -46,6 +47,9 @@ describe('release-evidence', () => {
 
     expect(automatedGatesPassed(readiness)).toBe(true);
     expect(unitTestsPassed(readiness)).toBe(true);
+    expect(decision.submitFormalReviewCandidateLocal).toBe(true);
+    expect(decision.submitFormalReviewCandidateCi).toBe(true);
+    expect(decision.completeAutomatedEvidencePassed).toBe(true);
     expect(decision.submitFormalReviewCandidate).toBe(true);
     expect(decision.directProductionLaunchAllowed).toBe(false);
     expect(decision.evidenceCompleteness.externalContracts).toBe('required_external_confirmation');
@@ -61,6 +65,7 @@ describe('release-evidence', () => {
         buildOutput: { status: 'pass' },
         unitTests: 'unknown',
       },
+      commit: { dirty: false },
       finalGate: { codeCandidate: true },
     };
 
@@ -71,8 +76,94 @@ describe('release-evidence', () => {
 
     expect(decision.localNonTestGatesPassed).toBe(true);
     expect(decision.localAutomatedGatesPassed).toBe(false);
+    expect(decision.completeAutomatedEvidencePassed).toBe(false);
     expect(decision.submitFormalReviewCandidate).toBe(false);
-    expect(decision.evidenceCompleteness.localUnitTests).toBe('required_or_covered_by_ci');
+    expect(decision.evidenceCompleteness.localUnitTests).toBe('required_run_release_evidence_verified');
+    expect(decision.evidenceCompleteness.formalReviewEvidence).toBe('blocked_until_clean_local_verify_and_github_actions_pass');
+  });
+
+  it('requires GitHub Actions before marking final formal review evidence complete', () => {
+    const readiness = {
+      automatedGates: {
+        readonlyDefault: { status: 'pass' },
+        releaseProfile: { status: 'pass' },
+        apiBoundary: { status: 'pass' },
+        sensitiveScan: { status: 'pass' },
+        buildOutput: { status: 'pass' },
+        unitTests: 'pass',
+      },
+      commit: { dirty: false },
+      finalGate: { codeCandidate: true },
+    };
+
+    const decision = buildReleaseDecision({
+      readiness,
+      githubActions: { conclusion: 'unknown' },
+    });
+
+    expect(decision.localAutomatedGatesPassed).toBe(true);
+    expect(decision.githubActionsPassed).toBe(false);
+    expect(decision.submitFormalReviewCandidateLocal).toBe(true);
+    expect(decision.submitFormalReviewCandidateCi).toBe(false);
+    expect(decision.completeAutomatedEvidencePassed).toBe(false);
+    expect(decision.submitFormalReviewCandidate).toBe(false);
+    expect(decision.evidenceCompleteness.formalReviewEvidence).toBe('blocked_until_clean_local_verify_and_github_actions_pass');
+  });
+
+  it('requires local verified evidence even when GitHub Actions passed', () => {
+    const readiness = {
+      automatedGates: {
+        readonlyDefault: { status: 'pass' },
+        releaseProfile: { status: 'pass' },
+        apiBoundary: { status: 'pass' },
+        sensitiveScan: { status: 'pass' },
+        buildOutput: { status: 'pass' },
+        unitTests: 'unknown',
+      },
+      commit: { dirty: false },
+      finalGate: { codeCandidate: true },
+    };
+
+    const decision = buildReleaseDecision({
+      readiness,
+      githubActions: { conclusion: 'success' },
+    });
+
+    expect(decision.localAutomatedGatesPassed).toBe(false);
+    expect(decision.githubActionsPassed).toBe(true);
+    expect(decision.submitFormalReviewCandidateLocal).toBe(false);
+    expect(decision.submitFormalReviewCandidateCi).toBe(true);
+    expect(decision.completeAutomatedEvidencePassed).toBe(false);
+    expect(decision.submitFormalReviewCandidate).toBe(false);
+  });
+
+  it('requires a clean worktree before marking a formal review candidate', () => {
+    const readiness = {
+      automatedGates: {
+        readonlyDefault: { status: 'pass' },
+        releaseProfile: { status: 'pass' },
+        apiBoundary: { status: 'pass' },
+        sensitiveScan: { status: 'pass' },
+        buildOutput: { status: 'pass' },
+        unitTests: 'pass',
+      },
+      commit: { dirty: true },
+      finalGate: { codeCandidate: true },
+    };
+
+    const decision = buildReleaseDecision({
+      readiness,
+      githubActions: { conclusion: 'success' },
+    });
+
+    expect(decision.cleanWorktree).toBe(false);
+    expect(decision.localAutomatedGatesPassed).toBe(true);
+    expect(decision.githubActionsPassed).toBe(true);
+    expect(decision.completeAutomatedEvidencePassed).toBe(true);
+    expect(decision.submitFormalReviewCandidateLocal).toBe(false);
+    expect(decision.submitFormalReviewCandidateCi).toBe(false);
+    expect(decision.submitFormalReviewCandidate).toBe(false);
+    expect(decision.evidenceCompleteness.cleanWorktree).toBe('blocked_dirty_or_unknown_worktree');
   });
 
   it('turns manual contracts into evidence requests', () => {
@@ -109,10 +200,14 @@ describe('release-evidence', () => {
         },
       ],
       decision: {
+        cleanWorktree: true,
         githubActionsPassed: true,
         localNonTestGatesPassed: true,
         localUnitTestsStatus: 'pass',
         localAutomatedGatesPassed: true,
+        completeAutomatedEvidencePassed: true,
+        submitFormalReviewCandidateLocal: true,
+        submitFormalReviewCandidateCi: true,
         submitFormalReviewCandidate: true,
         readonlyGrayFeasible: true,
         restrictedWriteGrayFeasible: true,
@@ -124,6 +219,8 @@ describe('release-evidence', () => {
     expect(markdown).toContain('Commit: `mock-sha`');
     expect(markdown).toContain('Confirmed Recovered Contracts');
     expect(markdown).toContain('patient archive ownership fields');
+    expect(markdown).toContain('Clean worktree: PASS');
+    expect(markdown).toContain('Final formal review candidate: yes');
     expect(markdown).toContain('Direct production launch allowed: no');
     expect(markdown).toContain('Direct production launch: no');
   });

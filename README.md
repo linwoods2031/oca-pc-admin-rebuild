@@ -73,6 +73,8 @@ npm run release:evidence:verified:markdown
 
 证据包会汇总 commit、发布档位、自动化 gate、GitHub Actions 状态和仍需外部确认的事项。动态证据只用于评审单附件，不提交到仓库；模板说明见 `docs/release-evidence.md`。
 
+`submitFormalReviewCandidate=true` 必须同时满足干净工作树、本地 `release:evidence:verified` 通过和 GitHub Actions `Verify frontend safety gates` 成功。只有本地通过或只有 CI 通过时，证据包会分别标记本地/CI 候选状态，但最终正式评审候选字段保持 false。
+
 患者新增/编辑的归属字段已按恢复后端和已认可小程序壳完成反查，`attendingDoctor` 明确按 `sys_user.user_id` 处理；记录见 `docs/recovered-contracts.md`。
 
 正式上线不是只靠前端决定，还需要完成：

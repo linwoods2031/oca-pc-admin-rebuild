@@ -58,6 +58,9 @@ function checkVerifyScript() {
       fail(`package.json verify/verify:ci 必须包含 ${item}。`);
     }
   }
+  if (!packageJson.scripts?.['release:evidence'] || !packageJson.scripts?.['release:evidence:verified']) {
+    fail('package.json 必须包含 release:evidence 和 release:evidence:verified，用于生成发布证据包。');
+  }
 }
 
 function checkRequiredText(file, phrases) {
@@ -76,6 +79,7 @@ function checkDocs() {
     '回滚',
     'allow-list',
     'VITE_RELEASE_PROFILE',
+    'release:evidence:verified',
   ]);
   checkRequiredText('README.md', [
     'npm run verify',
@@ -84,6 +88,13 @@ function checkDocs() {
     '正式上线评审候选',
     '直接正式上线仍需人工批准',
     'VITE_RELEASE_PROFILE',
+    'release:evidence:verified',
+  ]);
+  checkRequiredText('docs/release-evidence.md', [
+    '发布证据包',
+    'npm run verify',
+    'release:evidence:verified',
+    'directProductionLaunchAllowed=false',
   ]);
 }
 

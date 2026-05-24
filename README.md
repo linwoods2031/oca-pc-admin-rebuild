@@ -64,6 +64,15 @@ npm run verify
 
 默认 `npm run verify` 生成的是只读 `formal-candidate` 自动化准入结果。若构建环境设置了 `VITE_ENABLE_PROD_WRITES=true` 但没有同时设置 `VITE_RELEASE_PROFILE=restricted-write-gray`，构建产物检查和 release readiness 会失败，避免写入灰度包被误当作正式上线评审候选包。
 
+生成评审证据包时运行：
+
+```bash
+npm run release:evidence:verified
+npm run release:evidence:verified:markdown
+```
+
+证据包会汇总 commit、发布档位、自动化 gate、GitHub Actions 状态和仍需外部确认的事项。动态证据只用于评审单附件，不提交到仓库；模板说明见 `docs/release-evidence.md`。
+
 正式上线不是只靠前端决定，还需要完成：
 
 - 后端接口契约确认。

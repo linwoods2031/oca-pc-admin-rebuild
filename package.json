@@ -13,6 +13,11 @@
     "check:sensitive": "node scripts/check-sensitive.mjs",
     "check:build-output": "node scripts/check-build-output.mjs",
     "check:release-readiness": "node scripts/check-release-readiness.mjs",
+    "release:evidence": "node scripts/release-evidence.mjs",
+    "release:evidence:github": "node scripts/release-evidence.mjs --include-github",
+    "release:evidence:markdown": "node scripts/release-evidence.mjs --include-github --markdown",
+    "release:evidence:verified": "npm run verify && VERIFY_UNIT_TESTS_STATUS=pass node scripts/release-evidence.mjs --include-github",
+    "release:evidence:verified:markdown": "npm run verify && VERIFY_UNIT_TESTS_STATUS=pass node scripts/release-evidence.mjs --include-github --markdown",
     "preflight": "node scripts/preflight.mjs",
     "verify:ci": "npm run check:api-boundary && npm run check:sensitive && npm run test && npm run build && npm run check:build-output && npm run preflight && VERIFY_UNIT_TESTS_STATUS=pass npm run check:release-readiness",
     "verify": "npm run verify:ci"

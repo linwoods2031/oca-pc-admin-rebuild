@@ -249,6 +249,8 @@ import {
   assertOutpatientWriteAllowed,
   assertPatientWriteAllowed,
   assertReportWriteAllowed,
+  baseWriteDisabledMessage,
+  isBaseWriteEnabled,
   isReadOnlyMode,
   writeDisabledMessage,
 } from '../config/runtime.js';
@@ -427,9 +429,12 @@ const reportSaveDisabled = computed(() => isReadOnlyMode || reportReadonly.value
 const reportDisabledReason = computed(() =>
   isReadOnlyMode ? writeDisabledMessage : '该评估已提交，当前按只读方式查看，避免覆盖正式结果。',
 );
-const baseReadonly = computed(() => isReadOnlyMode || isAssessmentSubmitted(baseAssessmentState.value) || Boolean(baseAssociationWarning.value));
+const baseReadonly = computed(
+  () => !isBaseWriteEnabled || isReadOnlyMode || isAssessmentSubmitted(baseAssessmentState.value) || Boolean(baseAssociationWarning.value),
+);
 const baseSaveDisabled = computed(() => baseReadonly.value);
 const baseDisabledReason = computed(() => {
+  if (!isBaseWriteEnabled) return baseWriteDisabledMessage;
   if (isReadOnlyMode) return writeDisabledMessage;
   if (isAssessmentSubmitted(baseAssessmentState.value)) return '该评估已提交，一般情况表当前按只读方式查看。';
   if (baseAssociationWarning.value) return baseAssociationWarning.value;

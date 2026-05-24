@@ -2,6 +2,8 @@
 
 这套 goal 用于让 Codex CLI 按阶段重建 PC 后台源码。每个阶段都要求 Codex 自己开发、自己验证、自己修复，不把测试留给人工。
 
+注意：本文记录的是早期重建目标。后续业务用户已确认 PC 后台正式使用时一般情况表和当前用药只读，修改保留在平板/小程序流程中完成；当前发布口径以 `docs/recovered-contracts.md`、`docs/release-evidence.md` 和 `docs/mini-program-final-requirements.md` 为准。
+
 ## 使用方式
 
 在终端进入项目：

@@ -1,5 +1,6 @@
 import { internalApi } from './client.js';
 import {
+  assertBaseWriteAllowed,
   assertCreatePatientAllowed,
   assertOutpatientWriteAllowed,
   assertPatientWriteAllowed,
@@ -61,12 +62,14 @@ export function getBaseMedications(patientId) {
 }
 
 export function addBase(payload) {
+  assertBaseWriteAllowed();
   assertPatientWriteAllowed(payload?.patientId, '当前患者不在写入灰度 allow-list，禁止保存一般情况表');
   assertOutpatientWriteAllowed(payload?.outpatientId, '当前评估不在写入灰度 allow-list，禁止保存一般情况表');
   return internalApi.post('/outpatient/base/add', payload);
 }
 
 export function updateBase(payload) {
+  assertBaseWriteAllowed();
   assertPatientWriteAllowed(payload?.patientId, '当前患者不在写入灰度 allow-list，禁止保存一般情况表');
   assertOutpatientWriteAllowed(payload?.outpatientId, '当前评估不在写入灰度 allow-list，禁止保存一般情况表');
   return internalApi.post('/outpatient/base/update', payload);

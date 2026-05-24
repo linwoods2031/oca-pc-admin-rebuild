@@ -80,6 +80,8 @@ function checkDocs() {
     'allow-list',
     'VITE_RELEASE_PROFILE',
     'release:evidence:verified',
+    '一般情况表和当前用药不纳入 PC 写入灰度范围',
+    'docs/mini-program-final-requirements.md',
   ]);
   checkRequiredText('README.md', [
     'npm run verify',
@@ -89,6 +91,8 @@ function checkDocs() {
     '直接正式上线仍需人工批准',
     'VITE_RELEASE_PROFILE',
     'release:evidence:verified',
+    '一般情况调查表和当前用药只读',
+    'docs/mini-program-final-requirements.md',
   ]);
   checkRequiredText('docs/release-evidence.md', [
     '发布证据包',
@@ -96,12 +100,20 @@ function checkDocs() {
     'release:evidence:verified',
     'directProductionLaunchAllowed=false',
     'docs/recovered-contracts.md',
+    'docs/mini-program-final-requirements.md',
   ]);
   checkRequiredText('docs/recovered-contracts.md', [
     '恢复代码契约反查记录',
     'attendingDoctor',
     'sys_user.user_id',
     'fail closed',
+    'PC 后台正式使用时不允许修改一般情况表和当前用药',
+  ]);
+  checkRequiredText('docs/mini-program-final-requirements.md', [
+    '小程序最终口径对齐清单',
+    'MMSE',
+    'FRA',
+    'PC 后台不单独定义上述量表评分和结论规则',
   ]);
 }
 

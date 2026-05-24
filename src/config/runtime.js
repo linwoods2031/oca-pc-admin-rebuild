@@ -1,12 +1,16 @@
 export const writeDisabledMessage =
   '生产 API 灰度环境当前为只读模式，请仅使用测试患者查看数据；如需写入，必须经发布负责人确认后显式开启。';
+export const baseWriteDisabledMessage = 'PC 端一般情况表和当前用药当前按只读处理，修改请在平板端完成。';
 export const grayBannerTitle = '生产 API 灰度环境';
 
 const allowListMissingMessage = '写入灰度未配置 allow-list，禁止写入';
 const objectNotAllowedMessage = '当前对象不在写入灰度 allow-list，禁止写入';
 
 function writeEnabledBannerMessage() {
-  return ['当前允许', '写入生产 API，但仅允许操作 allow-list 中的测试患者、测试评估和测试报告。'].join('');
+  return [
+    '当前允许',
+    '写入生产 API，但仅允许操作 allow-list 中的测试患者、测试评估和测试报告；一般情况表和当前用药保持只读。',
+  ].join('');
 }
 
 export function parseIdList(value) {
@@ -27,6 +31,7 @@ export function createRuntimeConfig(env = {}) {
     allowedOutpatientIds: parseIdList(env.VITE_WRITE_ALLOW_OUTPATIENT_IDS),
     allowedReportIds: parseIdList(env.VITE_WRITE_ALLOW_REPORT_IDS),
     allowCreatePatient: env.VITE_ALLOW_CREATE_PATIENT === 'true',
+    isBaseWriteEnabled: false,
   };
 
   config.isReadOnlyMode = !config.isWriteEnabled;
@@ -70,12 +75,17 @@ export function createWriteGuards(config) {
     if (!config.allowCreatePatient) throw new Error('写入灰度默认禁止新增患者，必须显式设置 VITE_ALLOW_CREATE_PATIENT=true');
   }
 
+  function assertBaseWriteAllowed() {
+    throw new Error(baseWriteDisabledMessage);
+  }
+
   return {
     assertWriteEnabled,
     assertPatientWriteAllowed,
     assertOutpatientWriteAllowed,
     assertReportWriteAllowed,
     assertCreatePatientAllowed,
+    assertBaseWriteAllowed,
   };
 }
 
@@ -89,6 +99,7 @@ export const allowedOutpatientIds = runtimeConfig.allowedOutpatientIds;
 export const allowedReportIds = runtimeConfig.allowedReportIds;
 export const isAllowListEnabled = runtimeConfig.isAllowListEnabled;
 export const allowCreatePatient = runtimeConfig.allowCreatePatient;
+export const isBaseWriteEnabled = runtimeConfig.isBaseWriteEnabled;
 export const writeGuardMessage = runtimeConfig.writeGuardMessage;
 export const grayBannerMessage = runtimeConfig.grayBannerMessage;
 
@@ -98,4 +109,5 @@ export const {
   assertOutpatientWriteAllowed,
   assertReportWriteAllowed,
   assertCreatePatientAllowed,
+  assertBaseWriteAllowed,
 } = writeGuards;

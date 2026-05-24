@@ -69,17 +69,40 @@ export const CONFIRMED_RECOVERED_CONTRACTS = [
       'Recovered MedicationSituation rows are keyed by patient base id, and update deletes then recreates medication rows when msList is present.',
       'Accepted mini program shell calls getBaseForm(patientId), getBaseMedications(patientId), and omits empty msList.',
     ],
-    residualRisk: 'This confirms the storage scope but also confirms base/medication writes are shared at patient/base level; broader write rollout needs explicit release-owner approval.',
+    residualRisk:
+      'This confirms the storage scope but also confirms base/medication writes are shared at patient/base level; PC now keeps these records readonly, and any future PC write rollout would need a new approval.',
+  },
+];
+
+export const CONFIRMED_EXTERNAL_DECISIONS = [
+  {
+    name: 'pc base and medication write policy',
+    status: 'confirmed_user_decision_readonly',
+    scope: 'PC formal use keeps general situation and current medication readonly; updates remain in the accepted tablet/mini-program flow',
+    evidence: [
+      'User-side confirmation says the corrected entry was used for the late-April full test round.',
+      'User-side confirmation says the main flow worked apart from separately listed scale content and scoring issues.',
+      'User-side confirmation says current medication is patient foundation information.',
+      'User-side decision says PC must remain readonly for general situation and current medication; medication changes are made on the tablet flow.',
+    ],
+    residualRisk:
+      'This is a user-side rollout decision, not server artifact parity evidence. PC source now enforces readonly base/medication UI and API guards.',
+  },
+  {
+    name: 'mini program final requirements source of truth',
+    status: 'confirmed_user_final_requirements',
+    scope: 'Scale names, question display, scoring, and conclusion wording should follow the accepted mini-program final requirements list',
+    evidence: [
+      'User instruction says mini-program requirements should follow the final business-user chat requirements.',
+      'docs/mini-program-final-requirements.md records the sanitized final alignment checklist.',
+      'PC source displays backend-returned table names, scores, and conclusions instead of hardcoding these scale rules.',
+    ],
+    residualRisk:
+      'This records the source of truth for cross-system alignment; backend and mini-program source repositories still need their own verification before production launch.',
   },
 ];
 
 export const REQUIRED_MANUAL_CONTRACTS = [
-  {
-    name: 'patient-scoped base write rollout approval',
-    status: 'required_external_approval',
-    blocksDirectLaunch: true,
-    risk: 'Recovered artifacts confirm base and medication data are patient/base-scoped, not per-assessment; release owner must approve whether PC may edit those shared records beyond allow-list gray verification.',
-  },
   {
     name: 'server artifact parity for recovered contracts',
     status: 'required_deployment_evidence',
@@ -94,10 +117,18 @@ export function buildReleaseReadinessReport({ root = process.cwd(), env = proces
   const releaseProfile = checkReleaseProfile(env);
   const buildOutput = checkBuildOutput({ root, env });
   const defaultRuntime = createRuntimeConfig({});
+  const writeGrayRuntime = createRuntimeConfig({
+    VITE_ENABLE_PROD_WRITES: 'true',
+    VITE_WRITE_ALLOW_PATIENT_IDS: 'patient-allow-1',
+    VITE_WRITE_ALLOW_OUTPATIENT_IDS: 'outpatient-allow-1',
+    VITE_WRITE_ALLOW_REPORT_IDS: 'report-allow-1',
+  });
   const readonlyDefaultIssues = defaultRuntime.isReadOnlyMode && !defaultRuntime.isWriteEnabled ? [] : [{ rule: 'readonly-default' }];
+  const pcBaseReadonlyIssues = writeGrayRuntime.isBaseWriteEnabled ? [{ rule: 'pc-base-readonly' }] : [];
   const unitTests = env.VERIFY_UNIT_TESTS_STATUS || env.UNIT_TESTS_STATUS || 'unknown';
   const automatedGates = {
     readonlyDefault: gate('readonlyDefault', readonlyDefaultIssues),
+    pcBaseReadonly: gate('pcBaseReadonly', pcBaseReadonlyIssues),
     releaseProfile: gate('releaseProfile', releaseProfile.issues),
     apiBoundary: gate('apiBoundary', apiBoundaryIssues),
     sensitiveScan: gate('sensitiveScan', sensitiveIssues),
@@ -135,6 +166,7 @@ export function buildReleaseReadinessReport({ root = process.cwd(), env = proces
     },
     automatedGates,
     confirmedRecoveredContracts: CONFIRMED_RECOVERED_CONTRACTS,
+    confirmedExternalDecisions: CONFIRMED_EXTERNAL_DECISIONS,
     requiredManualContracts: REQUIRED_MANUAL_CONTRACTS,
     productionActionsExecuted: false,
     realWriteApiCalled: false,

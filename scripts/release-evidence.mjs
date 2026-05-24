@@ -203,6 +203,7 @@ export function buildReleaseEvidence({ root = process.cwd(), env = process.env, 
       githubActions,
     },
     confirmedRecoveredContracts: readiness.confirmedRecoveredContracts || [],
+    confirmedExternalDecisions: readiness.confirmedExternalDecisions || [],
     safetyAssertions: {
       productionActionsExecuted: false,
       realWriteApiCalled: false,
@@ -248,6 +249,18 @@ export function renderMarkdownEvidence(evidence) {
           '## Confirmed Recovered Contracts',
           '',
           ...evidence.confirmedRecoveredContracts.flatMap((item) => [
+            `- ${item.name}: ${item.status}`,
+            `  Scope: ${item.scope}`,
+            `  Residual risk: ${item.residualRisk}`,
+          ]),
+          '',
+        ]
+      : []),
+    ...(evidence.confirmedExternalDecisions?.length
+      ? [
+          '## Confirmed External Decisions',
+          '',
+          ...evidence.confirmedExternalDecisions.flatMap((item) => [
             `- ${item.name}: ${item.status}`,
             `  Scope: ${item.scope}`,
             `  Residual risk: ${item.residualRisk}`,

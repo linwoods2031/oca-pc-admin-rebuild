@@ -76,4 +76,19 @@ describe('runtime config', () => {
 
     expect(() => guards.assertCreatePatientAllowed()).toThrow('VITE_ALLOW_CREATE_PATIENT=true');
   });
+
+  it('keeps general situation and medication writes disabled on PC even in write gray mode', () => {
+    const config = createRuntimeConfig({
+      VITE_ENABLE_PROD_WRITES: 'true',
+      VITE_WRITE_ALLOW_PATIENT_IDS: 'patient-allow-1',
+      VITE_WRITE_ALLOW_OUTPATIENT_IDS: 'outpatient-allow-1',
+      VITE_WRITE_ALLOW_REPORT_IDS: 'report-allow-1',
+    });
+    const guards = createWriteGuards(config);
+
+    expect(config.isWriteEnabled).toBe(true);
+    expect(config.isBaseWriteEnabled).toBe(false);
+    expect(config.grayBannerMessage).toContain('一般情况表和当前用药保持只读');
+    expect(() => guards.assertBaseWriteAllowed()).toThrow('平板端完成');
+  });
 });

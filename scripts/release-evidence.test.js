@@ -187,15 +187,9 @@ describe('release-evidence', () => {
     expect(requests[0].requiredEvidence.join(' ')).toContain('不得包含真实账号');
   });
 
-  it('assigns rollout approval and artifact parity evidence to the release owner', () => {
+  it('assigns artifact parity evidence to the release owner', () => {
     const requests = buildManualEvidenceRequests({
       requiredManualContracts: [
-        {
-          name: 'patient-scoped base write rollout approval',
-          status: 'required_external_approval',
-          risk: 'Release owner must approve shared base writes.',
-          blocksDirectLaunch: true,
-        },
         {
           name: 'server artifact parity for recovered contracts',
           status: 'required_deployment_evidence',
@@ -205,7 +199,7 @@ describe('release-evidence', () => {
       ],
     });
 
-    expect(requests.map((item) => item.ownerRole)).toEqual(['release_owner', 'release_owner']);
+    expect(requests.map((item) => item.ownerRole)).toEqual(['release_owner']);
   });
 
   it('renders markdown evidence without allowing direct production launch', () => {
@@ -221,6 +215,14 @@ describe('release-evidence', () => {
           name: 'patient archive ownership fields',
           status: 'confirmed_by_recovered_backend_artifacts',
           scope: 'mock scope',
+          residualRisk: 'server parity still needs deployment evidence',
+        },
+      ],
+      confirmedExternalDecisions: [
+        {
+          name: 'pc base and medication write policy',
+          status: 'confirmed_user_decision_readonly',
+          scope: 'PC base and medication readonly',
           residualRisk: 'server parity still needs deployment evidence',
         },
       ],
@@ -244,6 +246,8 @@ describe('release-evidence', () => {
     expect(markdown).toContain('Commit: `mock-sha`');
     expect(markdown).toContain('Confirmed Recovered Contracts');
     expect(markdown).toContain('patient archive ownership fields');
+    expect(markdown).toContain('Confirmed External Decisions');
+    expect(markdown).toContain('pc base and medication write policy');
     expect(markdown).toContain('Clean worktree: PASS');
     expect(markdown).toContain('Final formal review candidate: yes');
     expect(markdown).toContain('Direct production launch allowed: no');

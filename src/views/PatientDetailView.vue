@@ -132,35 +132,35 @@
 
         <el-form label-position="top" class="base-form" :model="baseForm" :disabled="baseReadonly">
           <el-form-item label="籍贯"><el-input v-model.trim="baseForm.nativePlace" /></el-form-item>
-          <el-form-item label="医保类型"><dict-select v-model="baseForm.medicalInsuranceType" :options="dicts.medicalInsuranceType" /></el-form-item>
-          <el-form-item label="文化程度"><dict-select v-model="baseForm.degree" :options="dicts.degree" /></el-form-item>
-          <el-form-item label="目前工作"><dict-select v-model="baseForm.careerStatus" :options="dicts.careerStatus" /></el-form-item>
+          <el-form-item label="医保类型"><dict-select v-model="baseForm.medicalInsuranceType" :options="dicts.medicalInsuranceType" :disabled="baseReadonly" /></el-form-item>
+          <el-form-item label="文化程度"><dict-select v-model="baseForm.degree" :options="dicts.degree" :disabled="baseReadonly" /></el-form-item>
+          <el-form-item label="目前工作"><dict-select v-model="baseForm.careerStatus" :options="dicts.careerStatus" :disabled="baseReadonly" /></el-form-item>
           <el-form-item label="吸烟情况"><el-input v-model.trim="baseForm.smokingHistory" /></el-form-item>
           <el-form-item label="饮酒情况"><el-input v-model.trim="baseForm.drinkingHistory" /></el-form-item>
-          <el-form-item label="婚姻状态"><dict-select v-model="baseForm.maritalStatus" :options="dicts.maritalStatus" /></el-form-item>
-          <el-form-item label="是否独居"><dict-select v-model="baseForm.isAlone" :options="dicts.isAlone" /></el-form-item>
+          <el-form-item label="婚姻状态"><dict-select v-model="baseForm.maritalStatus" :options="dicts.maritalStatus" :disabled="baseReadonly" /></el-form-item>
+          <el-form-item label="是否独居"><dict-select v-model="baseForm.isAlone" :options="dicts.isAlone" :disabled="baseReadonly" /></el-form-item>
           <el-form-item label="居住楼层"><el-input-number v-model="baseForm.livingFloor" :min="0" :controls="false" style="width: 100%" /></el-form-item>
-          <el-form-item label="电梯房"><dict-select v-model="baseForm.hasElevator" :options="dicts.hasElevator" /></el-form-item>
-          <el-form-item label="跌倒史"><dict-select v-model="baseForm.fallHistory" :options="dicts.fallHistory" /></el-form-item>
-          <el-form-item label="常住类型"><dict-select v-model="baseForm.permanentHomeType" :options="dicts.permanentHomeType" /></el-form-item>
+          <el-form-item label="电梯房"><dict-select v-model="baseForm.hasElevator" :options="dicts.hasElevator" :disabled="baseReadonly" /></el-form-item>
+          <el-form-item label="跌倒史"><dict-select v-model="baseForm.fallHistory" :options="dicts.fallHistory" :disabled="baseReadonly" /></el-form-item>
+          <el-form-item label="常住类型"><dict-select v-model="baseForm.permanentHomeType" :options="dicts.permanentHomeType" :disabled="baseReadonly" /></el-form-item>
           <el-form-item label="常住地点" class="form-span-2"><el-input v-model.trim="baseForm.permanentHomeName" /></el-form-item>
           <el-form-item label="儿子人数"><el-input-number v-model="baseForm.sonNumber" :min="0" :controls="false" style="width: 100%" /></el-form-item>
           <el-form-item label="女儿人数"><el-input-number v-model="baseForm.daughtersNumber" :min="0" :controls="false" style="width: 100%" /></el-form-item>
-          <el-form-item label="子女居住类型"><dict-select v-model="baseForm.childrenHomeType" :options="dicts.childrenHomeType" /></el-form-item>
+          <el-form-item label="子女居住类型"><dict-select v-model="baseForm.childrenHomeType" :options="dicts.childrenHomeType" :disabled="baseReadonly" /></el-form-item>
           <el-form-item label="子女探视频率"><el-input v-model.trim="baseForm.childrenHomingFreq" /></el-form-item>
-          <el-form-item label="照料者"><dict-select v-model="baseForm.carerType" :options="dicts.carerType" /></el-form-item>
+          <el-form-item label="照料者"><dict-select v-model="baseForm.carerType" :options="dicts.carerType" :disabled="baseReadonly" /></el-form-item>
           <el-form-item label="身高(cm)"><el-input-number v-model="baseForm.height" :min="0" :precision="1" :controls="false" style="width: 100%" @change="recalcBmi" /></el-form-item>
           <el-form-item label="体重(kg)"><el-input-number v-model="baseForm.weight" :min="0" :precision="1" :controls="false" style="width: 100%" @change="recalcBmi" /></el-form-item>
           <el-form-item label="BMI"><el-input-number v-model="baseForm.bmi" :min="0" :precision="2" :controls="false" style="width: 100%" /></el-form-item>
           <el-form-item label="残余牙齿"><el-input-number v-model="baseForm.alseToothNumber" :min="0" :controls="false" style="width: 100%" /></el-form-item>
-          <el-form-item label="义齿"><dict-select v-model="baseForm.dentureStatus" :options="dicts.dentureStatus" /></el-form-item>
-          <el-form-item label="听力情况"><dict-select v-model="baseForm.hearingDisorder" :options="dicts.hearingDisorder" /></el-form-item>
-          <el-form-item label="视力情况"><dict-select v-model="baseForm.visualImpairmentStatus" :options="dicts.visualImpairmentStatus" /></el-form-item>
-          <el-form-item label="尿失禁史"><dict-select v-model="baseForm.isUracratia" :options="dicts.isUracratia" /></el-form-item>
-          <el-form-item label="便失禁史"><dict-select v-model="baseForm.isBowelProblem" :options="dicts.isBowelProblem" /></el-form-item>
-          <el-form-item label="多重用药"><dict-select v-model="baseForm.isMultidrug" :options="dicts.isMultidrug" /></el-form-item>
-          <el-form-item label="精神类药物"><dict-select v-model="baseForm.isUsePsychotropicDrugs" :options="dicts.isUsePsychotropicDrugs" /></el-form-item>
-          <el-form-item label="影响进食"><dict-select v-model="baseForm.isAffectEating" :options="dicts.isAffectEating" /></el-form-item>
+          <el-form-item label="义齿"><dict-select v-model="baseForm.dentureStatus" :options="dicts.dentureStatus" :disabled="baseReadonly" /></el-form-item>
+          <el-form-item label="听力情况"><dict-select v-model="baseForm.hearingDisorder" :options="dicts.hearingDisorder" :disabled="baseReadonly" /></el-form-item>
+          <el-form-item label="视力情况"><dict-select v-model="baseForm.visualImpairmentStatus" :options="dicts.visualImpairmentStatus" :disabled="baseReadonly" /></el-form-item>
+          <el-form-item label="尿失禁史"><dict-select v-model="baseForm.isUracratia" :options="dicts.isUracratia" :disabled="baseReadonly" /></el-form-item>
+          <el-form-item label="便失禁史"><dict-select v-model="baseForm.isBowelProblem" :options="dicts.isBowelProblem" :disabled="baseReadonly" /></el-form-item>
+          <el-form-item label="多重用药"><dict-select v-model="baseForm.isMultidrug" :options="dicts.isMultidrug" :disabled="baseReadonly" /></el-form-item>
+          <el-form-item label="精神类药物"><dict-select v-model="baseForm.isUsePsychotropicDrugs" :options="dicts.isUsePsychotropicDrugs" :disabled="baseReadonly" /></el-form-item>
+          <el-form-item label="影响进食"><dict-select v-model="baseForm.isAffectEating" :options="dicts.isAffectEating" :disabled="baseReadonly" /></el-form-item>
           <el-form-item label="疾病诊断" class="form-span-2">
             <el-input v-model.trim="baseForm.diseaseDiagnosis" type="textarea" :rows="3" />
           </el-form-item>
@@ -181,7 +181,7 @@
       <template #footer>
         <span class="dialog-footer">
           <el-button @click="baseOpen = false">取消</el-button>
-          <el-button type="primary" :disabled="baseSaveDisabled" :loading="baseSaving" @click="saveBaseForm">保存</el-button>
+          <el-button type="primary" :disabled="baseSaveDisabled" @click="saveBaseForm">保存</el-button>
         </span>
       </template>
     </el-dialog>
@@ -240,7 +240,6 @@ import {
   getPatient,
   getQuestionReport,
   openCompositePrint,
-  saveBase,
   saveQuestionReport,
 } from '../api/oca.js';
 import { dateText, sexText, valueText } from '../format.js';
@@ -254,8 +253,8 @@ import {
   isReadOnlyMode,
   writeDisabledMessage,
 } from '../config/runtime.js';
-import { buildBasePayload, emptyMedicine, normalizeMsList } from '../utils/basePayload.js';
-import { decideBaseWritable, verifyBaseAssociation } from '../utils/baseWritable.js';
+import { emptyMedicine, normalizeMsList } from '../utils/basePayload.js';
+import { verifyBaseAssociation } from '../utils/baseWritable.js';
 import { buildQuestionPayload, isAssessmentSubmitted, isReportSubmitted, scoreText } from '../utils/reportPayload.js';
 import { decideReportWritable } from '../utils/reportWritable.js';
 
@@ -295,6 +294,7 @@ const DictSelect = defineComponent({
   props: {
     modelValue: { type: [String, Number], default: '' },
     options: { type: Array, default: () => [] },
+    disabled: { type: Boolean, default: false },
   },
   emits: ['update:modelValue'],
   setup(componentProps, { emit }) {
@@ -307,6 +307,7 @@ const DictSelect = defineComponent({
           modelValue: componentProps.modelValue,
           placeholder: '请选择',
           clearable: true,
+          disabled: componentProps.disabled,
           style: 'width: 100%',
           'onUpdate:modelValue': (value) => emit('update:modelValue', value),
         },
@@ -337,7 +338,6 @@ const reportMeta = ref({});
 const currentAssessmentState = ref(null);
 const baseOpen = ref(false);
 const baseLoading = ref(false);
-const baseSaving = ref(false);
 const baseOutpatientId = ref(null);
 const baseAssessmentState = ref(null);
 const baseAssociationWarning = ref('');
@@ -659,65 +659,8 @@ function printPreview() {
   window.print();
 }
 
-async function verifyBaseWritable() {
-  const outpatientId = baseOutpatientId.value || baseForm.outpatientId;
-  let freshPatient = null;
-  let freshBase = null;
-  try {
-    [freshPatient, freshBase] = await Promise.all([getPatient(props.id), getBase(props.id)]);
-  } catch {
-    ElMessage.warning('保存前复查失败，已禁止保存一般情况表。');
-    return false;
-  }
-  patient.value = freshPatient;
-  const decision = decideBaseWritable({
-    freshPatient,
-    freshBase,
-    outpatientId,
-    baseFormId: baseForm.id,
-  });
-  baseAssessmentState.value = decision.assessment?.state ?? baseAssessmentState.value;
-  if (!decision.allowed) {
-    if (decision.code?.startsWith('fresh-base-')) baseAssociationWarning.value = decision.reason;
-    ElMessage.warning(baseAssociationWarning.value || decision.reason);
-    return false;
-  }
-  return true;
-}
-
-async function saveBaseForm() {
-  if (baseSaveDisabled.value) {
-    ElMessage.warning(baseDisabledReason.value);
-    return;
-  }
-  if (!baseForm.id && !(baseOutpatientId.value || baseForm.outpatientId)) {
-    ElMessage.warning('请先选择一条评估记录后再新增一般情况表');
-    return;
-  }
-  baseSaving.value = true;
-  try {
-    assertPatientWriteAllowed(props.id, '当前患者不在写入灰度 allow-list，禁止保存一般情况表');
-    assertOutpatientWriteAllowed(baseOutpatientId.value || baseForm.outpatientId, '当前评估不在写入灰度 allow-list，禁止保存一般情况表');
-    const freshWritable = await verifyBaseWritable();
-    if (!freshWritable) return;
-    if (!normalizeMsList(baseForm.msList).length) {
-      ElMessage.warning('当前不会清空后端已有用药；如需清空需后端确认支持。');
-    }
-    const payload = buildBasePayload(baseForm, {
-      patientId: Number(props.id),
-      outpatientId: baseOutpatientId.value || baseForm.outpatientId,
-      tableId: baseForm.tableId || 4,
-      keepEmpty: Boolean(baseForm.id),
-    });
-    await saveBase(payload);
-    ElMessage.success('一般情况已保存');
-    baseOpen.value = false;
-    await load();
-  } catch (error) {
-    ElMessage.error(error.message || '保存一般情况失败');
-  } finally {
-    baseSaving.value = false;
-  }
+function saveBaseForm() {
+  ElMessage.warning(baseDisabledReason.value || baseWriteDisabledMessage);
 }
 
 async function print(row) {

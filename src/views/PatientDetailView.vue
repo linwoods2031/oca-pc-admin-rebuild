@@ -566,17 +566,21 @@ async function verifyReportWritable() {
     ElMessage.warning('保存前无法确认当前评估，已禁止保存量表。');
     return false;
   }
+  const sessionAssessmentAllowed = allowSessionWriteIds && hasOutpatientWriteId(currentOutpatientId.value);
   const [result, freshPatient] = await Promise.all([getAssessmentTables(currentOutpatientId.value), getPatient(props.id)]);
   const decision = decideReportWritable({
     freshPatient,
     assessmentTables: result,
     currentOutpatientId: currentOutpatientId.value,
     reportMeta: reportMeta.value,
-    allowSessionAssessment: allowSessionWriteIds && hasOutpatientWriteId(currentOutpatientId.value),
+    allowSessionAssessment: sessionAssessmentAllowed,
   });
   currentAssessmentState.value = decision.assessmentState ?? currentAssessmentState.value;
   if (decision.freshReport) reportMeta.value = { ...decision.mergedReport, ...mapTable(decision.freshReport) };
-  if (freshPatient) patient.value = freshPatient;
+  if (freshPatient) {
+    patient.value = freshPatient;
+    if (sessionAssessmentAllowed) ensureSessionAssessmentRow(currentOutpatientId.value);
+  }
   if (!decision.allowed) {
     ElMessage.warning(decision.reason);
     return false;

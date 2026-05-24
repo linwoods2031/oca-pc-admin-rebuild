@@ -129,7 +129,7 @@ export function buildReleaseDecision({ readiness, githubActions }) {
   const githubStatus = githubActions?.conclusion || 'unknown';
   const githubPass = githubStatus === 'success';
   const cleanWorktree = readiness.commit?.dirty === false;
-  const grayEvidencePass = localAutomatedPass || githubPass;
+  const grayEvidencePass = cleanWorktree && (localAutomatedPass || githubPass);
   const completeAutomatedEvidencePass = localAutomatedPass && githubPass;
   const submitFormalReviewCandidateLocal = Boolean(readiness.finalGate.codeCandidate && cleanWorktree && localAutomatedPass);
   const submitFormalReviewCandidateCi = Boolean(readiness.finalGate.codeCandidate && cleanWorktree && githubPass);

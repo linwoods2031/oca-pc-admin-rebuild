@@ -21,6 +21,7 @@ npm run release:evidence:verified:markdown
 - `npm run verify` 对应的自动化 gate 状态。
 - GitHub Actions 的 `Verify frontend safety gates` 运行状态，前提是使用 `release:evidence:github`。
 - 本地候选、CI 候选、最终候选三个字段；最终候选必须干净工作树、本地和 CI 同时通过。
+- 只读灰度/受限写入灰度 feasibility 字段；这些字段同样要求干净工作树，并至少具备本地 verified 或 CI 成功证据。
 - `productionActionsExecuted=false`。
 - `realWriteApiCalled=false`。
 - `deploymentExecuted=false`。

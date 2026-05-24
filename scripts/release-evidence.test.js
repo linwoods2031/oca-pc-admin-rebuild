@@ -51,6 +51,8 @@ describe('release-evidence', () => {
     expect(decision.submitFormalReviewCandidateCi).toBe(true);
     expect(decision.completeAutomatedEvidencePassed).toBe(true);
     expect(decision.submitFormalReviewCandidate).toBe(true);
+    expect(decision.readonlyGrayFeasible).toBe(true);
+    expect(decision.restrictedWriteGrayFeasible).toBe(true);
     expect(decision.directProductionLaunchAllowed).toBe(false);
     expect(decision.evidenceCompleteness.externalContracts).toBe('required_external_confirmation');
   });
@@ -163,6 +165,8 @@ describe('release-evidence', () => {
     expect(decision.submitFormalReviewCandidateLocal).toBe(false);
     expect(decision.submitFormalReviewCandidateCi).toBe(false);
     expect(decision.submitFormalReviewCandidate).toBe(false);
+    expect(decision.readonlyGrayFeasible).toBe(false);
+    expect(decision.restrictedWriteGrayFeasible).toBe(false);
     expect(decision.evidenceCompleteness.cleanWorktree).toBe('blocked_dirty_or_unknown_worktree');
   });
 

@@ -21,6 +21,73 @@ function gate(name, issues = []) {
   return { name, status: statusFromIssues(issues), issueCount: issues.length };
 }
 
+export const CONFIRMED_RECOVERED_CONTRACTS = [
+  {
+    name: 'patient archive ownership fields',
+    status: 'confirmed_by_recovered_backend_artifacts',
+    scope: 'deptId, hospitalId, attendingDoctor for patient create/edit',
+    evidence: [
+      'Recovered PatientArchiveServiceImpl.addPatient sets missing deptId from SecurityUtils.getDeptId().',
+      'Recovered PatientArchiveServiceImpl.addPatient sets missing attendingDoctor from createUser/sys_user.user_id.',
+      'Recovered PatientArchiveServiceImpl.addPatient sets hospitalId from LoginUser.getHospital().',
+      'Recovered PatientArchiveController resolves doctorName with userService.selectUserById(attendingDoctor).',
+      'Accepted mini program shell submits configured dept, hospital, and doctor user ids for patient create/edit.',
+    ],
+    residualRisk: 'Server artifact parity must still be checked during deployment evidence, but this is no longer an unknown payload contract.',
+  },
+  {
+    name: 'editCheckReport payload compatibility with mini program',
+    status: 'confirmed_by_recovered_backend_and_accepted_mini_program_artifacts',
+    scope: 'POST /outpatient/check/editCheckReport with { reportId, itemList } question rows and nullable checkItem values',
+    evidence: [
+      'Accepted mini program shell posts editCheckReport with reportId and itemList.',
+      'Accepted mini program shell sends full question rows and leaves unanswered rows as checkItem null.',
+      'Recovered OutpatientCheckController.editCheckReport parses itemList as QuestionDto rows, extracts non-null checkItem values, and calls addCheckReport.',
+      'Recovered CheckItem fields are questionId, optionId, score, question, and input.',
+    ],
+    residualRisk: 'Unsupported future question types still require a new contract before enabling; current PC payload code handles radio rows and text input rows only.',
+  },
+  {
+    name: 'submitted state fields',
+    status: 'confirmed_by_recovered_backend_and_accepted_mini_program_artifacts',
+    scope: 'OutpatientCheck.state and OutpatientCheckReport.state',
+    evidence: [
+      'Recovered OutpatientCheck uses state 0 for in-progress assessments and state 1 for submitted assessments.',
+      'Recovered OutpatientCheckReport uses state 0 for unstarted, state 1 for saved, and state 2 for submitted table reports.',
+      'Recovered submitCheck sets the assessment state to 1 and report states to 2.',
+      'Accepted mini program shell treats table report state 2 as completed/read-only and requires all table report states to be saved before submit.',
+    ],
+    residualRisk: 'reportState/status/finishState remain defensive PC-side aliases for unknown wrappers, but recovered canonical backend fields are state values.',
+  },
+  {
+    name: 'patient base and medication storage scope',
+    status: 'confirmed_by_recovered_backend_and_accepted_mini_program_artifacts',
+    scope: 'Patient base is patient-scoped; medication rows are keyed to the patient base record and replaced when msList is present',
+    evidence: [
+      'Recovered PatientBaseDao.findByPatient selects oca_patient_base by patient_id.',
+      'Recovered PatientBaseServiceImpl.add/update uses outpatientId and tableId only to mark the matching base report saved.',
+      'Recovered MedicationSituation rows are keyed by patient base id, and update deletes then recreates medication rows when msList is present.',
+      'Accepted mini program shell calls getBaseForm(patientId), getBaseMedications(patientId), and omits empty msList.',
+    ],
+    residualRisk: 'This confirms the storage scope but also confirms base/medication writes are shared at patient/base level; broader write rollout needs explicit release-owner approval.',
+  },
+];
+
+export const REQUIRED_MANUAL_CONTRACTS = [
+  {
+    name: 'patient-scoped base write rollout approval',
+    status: 'required_external_approval',
+    blocksDirectLaunch: true,
+    risk: 'Recovered artifacts confirm base and medication data are patient/base-scoped, not per-assessment; release owner must approve whether PC may edit those shared records beyond allow-list gray verification.',
+  },
+  {
+    name: 'server artifact parity for recovered contracts',
+    status: 'required_deployment_evidence',
+    blocksDirectLaunch: true,
+    risk: 'The release package and running server code must be shown to match the recovered backend artifacts used for these contract confirmations.',
+  },
+];
+
 export function buildReleaseReadinessReport({ root = process.cwd(), env = process.env } = {}) {
   const apiBoundaryIssues = checkApiBoundary({ root });
   const sensitiveIssues = checkSensitive({ root });
@@ -67,47 +134,8 @@ export function buildReleaseReadinessReport({ root = process.cwd(), env = proces
           : 'This package is expected to remain readonly by default and may be considered by automated gates as a formal review candidate only when all gates pass.',
     },
     automatedGates,
-    confirmedRecoveredContracts: [
-      {
-        name: 'patient archive ownership fields',
-        status: 'confirmed_by_recovered_backend_artifacts',
-        scope: 'deptId, hospitalId, attendingDoctor for patient create/edit',
-        evidence: [
-          'Recovered PatientArchiveServiceImpl.addPatient sets missing deptId from SecurityUtils.getDeptId().',
-          'Recovered PatientArchiveServiceImpl.addPatient sets missing attendingDoctor from createUser/sys_user.user_id.',
-          'Recovered PatientArchiveServiceImpl.addPatient sets hospitalId from LoginUser.getHospital().',
-          'Recovered PatientArchiveController resolves doctorName with userService.selectUserById(attendingDoctor).',
-          'Accepted mini program shell submits configured dept, hospital, and doctor user ids for patient create/edit.',
-        ],
-        residualRisk: 'Server artifact parity must still be checked during deployment evidence, but this is no longer an unknown payload contract.',
-      },
-    ],
-    requiredManualContracts: [
-      {
-        name: 'getBase patientId/outpatientId semantics',
-        status: 'required_external_confirmation',
-        blocksDirectLaunch: true,
-        risk: 'Base form writes must remain tied to the current assessment outpatientId.',
-      },
-      {
-        name: 'getBaseMedications scope',
-        status: 'required_external_confirmation',
-        blocksDirectLaunch: true,
-        risk: 'Medication rows must be confirmed as patient-scoped or assessment-scoped before broader write rollout.',
-      },
-      {
-        name: 'editCheckReport payload compatibility with mini program',
-        status: 'required_external_confirmation',
-        blocksDirectLaunch: true,
-        risk: 'Question payloads, including checkItem null and unsupported question types, must match the mini program/backend contract.',
-      },
-      {
-        name: 'submitted status fields',
-        status: 'required_external_confirmation',
-        blocksDirectLaunch: true,
-        risk: 'Submitted-state fields and values must be confirmed so write guards block every submitted record.',
-      },
-    ],
+    confirmedRecoveredContracts: CONFIRMED_RECOVERED_CONTRACTS,
+    requiredManualContracts: REQUIRED_MANUAL_CONTRACTS,
     productionActionsExecuted: false,
     realWriteApiCalled: false,
     deploymentExecuted: false,

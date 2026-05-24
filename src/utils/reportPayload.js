@@ -18,12 +18,12 @@ function normalizeOptionId(optionId) {
 }
 
 export function isAssessmentSubmitted(state) {
-  // 后端评估 state === 1 表示整次评估已提交。
+  // 恢复后端 OutpatientCheck.state === 1 表示整次评估已提交。
   return Number(state) === 1;
 }
 
 export function isReportSubmitted(report = {}) {
-  // 量表报告 state/reportState/status/finishState === 2 暂按已提交处理，实际主字段仍需接口回归确认。
+  // 恢复后端 OutpatientCheckReport.state === 2 表示量表已提交；其他字段是保守兼容别名。
   return [report.state, report.reportState, report.status, report.finishState].some((value) => Number(value) === 2);
 }
 
@@ -45,7 +45,7 @@ export function buildQuestionPayload(questions = []) {
     delete row.selectedOptionId;
     delete row.inputValue;
 
-    // 空答案继续提交 checkItem: null；该语义仍需与小程序和后端最终确认。
+    // 已认可小程序和恢复后端均接受未答题行 checkItem: null；后端保存时会过滤非空 checkItem。
     row.checkItem = null;
 
     const selectedOptionId = selectedOptionIdOf(item);

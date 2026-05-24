@@ -154,7 +154,7 @@ export function buildReleaseDecision({ readiness, githubActions }) {
       localUnitTests: unitTestsPassed(readiness) ? 'complete' : 'required_run_release_evidence_verified',
       githubActions: githubPass ? 'complete' : 'required_or_attach_external_ci_result',
       formalReviewEvidence: cleanWorktree && completeAutomatedEvidencePass ? 'complete' : 'blocked_until_clean_local_verify_and_github_actions_pass',
-      externalContracts: 'required_external_confirmation',
+      externalContracts: 'required_external_evidence',
       productionApproval: 'required_external_approval',
     },
   };
@@ -164,7 +164,11 @@ export function buildManualEvidenceRequests(readiness) {
   return readiness.requiredManualContracts.map((contract) => ({
     name: contract.name,
     status: contract.status,
-    ownerRole: contract.name.includes('mini program') ? 'mini_program_owner' : 'backend_or_release_owner',
+    ownerRole: contract.status === 'required_external_approval' || contract.status === 'required_deployment_evidence'
+      ? 'release_owner'
+      : contract.name.includes('mini program')
+        ? 'mini_program_owner'
+        : 'backend_or_release_owner',
     requiredEvidence: [
       '负责人确认记录或评审单条目',
       '脱敏截图或文档摘要',

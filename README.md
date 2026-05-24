@@ -10,11 +10,11 @@
 
 1. 只读灰度：默认级别，本地 dev 和生产构建默认只读，除登录外拦截业务写入。
 2. 受限写入灰度：必须显式设置 `VITE_ENABLE_PROD_WRITES=true`，并配置患者、评估、报告 allow-list，仅用于授权测试患者。
-3. 正式上线评审候选：源码、测试、预检、构建和文档达到提交评审条件，但仍必须完成后端接口契约、小程序 payload 对齐、生产权限、回滚、审计和备份确认。
+3. 正式上线评审候选：源码、测试、预检、构建和文档达到提交评审条件，但仍必须完成恢复契约对应的运行包一致性、患者级写入范围批准、生产权限、回滚、审计和备份确认。
 
 构建脚本使用 `VITE_RELEASE_PROFILE` 区分候选包类型。默认值是 `formal-candidate`，必须保持只读；受限写入灰度包必须显式使用 `VITE_RELEASE_PROFILE=restricted-write-gray`，不能作为正式上线评审候选包提交。
 
-当前代码达到的是正式上线评审候选，不代表可直接正式上线；直接正式上线仍需人工批准或发布负责人批准。无人工参与时，只能完成源码和自动化准入，不能完成真实接口契约确认和生产审批。
+当前代码达到的是正式上线评审候选，不代表可直接正式上线；直接正式上线仍需人工批准或发布负责人批准。无人工参与时，只能完成源码、自动化准入和恢复材料反查，不能完成服务器运行包一致性确认、生产审批或正式变更窗口操作。
 
 ## 已覆盖功能
 
@@ -71,16 +71,16 @@ npm run release:evidence:verified
 npm run release:evidence:verified:markdown
 ```
 
-证据包会汇总 commit、发布档位、自动化 gate、GitHub Actions 状态和仍需外部确认的事项。动态证据只用于评审单附件，不提交到仓库；模板说明见 `docs/release-evidence.md`。
+证据包会汇总 commit、发布档位、自动化 gate、GitHub Actions 状态、已从恢复材料确认的契约和仍需外部批准的事项。动态证据只用于评审单附件，不提交到仓库；模板说明见 `docs/release-evidence.md`。
 
 `submitFormalReviewCandidate=true` 必须同时满足干净工作树、本地 `release:evidence:verified` 通过和 GitHub Actions `Verify frontend safety gates` 成功。只有本地通过或只有 CI 通过时，证据包会分别标记本地/CI 候选状态，但最终正式评审候选字段保持 false。
 
-患者新增/编辑的归属字段已按恢复后端和已认可小程序壳完成反查，`attendingDoctor` 明确按 `sys_user.user_id` 处理；记录见 `docs/recovered-contracts.md`。
+患者新增/编辑的归属字段、量表保存 payload、提交态字段、一般情况表和用药范围已按恢复后端和已认可小程序壳完成反查；记录见 `docs/recovered-contracts.md`。其中一般情况表和用药已确认是患者级共享数据，扩大写入范围前仍需发布负责人明确批准。
 
 正式上线不是只靠前端决定，还需要完成：
 
-- 后端接口契约确认。
-- 小程序 payload 对齐。
+- 线上运行包与本地恢复材料一致性确认。
+- 患者级一般情况表和用药写入范围批准。
 - 生产账号权限确认。
 - 回滚演练。
 - 操作审计确认。

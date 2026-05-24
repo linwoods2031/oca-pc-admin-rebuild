@@ -103,7 +103,7 @@ describe('report payload helpers', () => {
 
   it('keeps empty answers as checkItem null', () => {
     const [row] = buildQuestionPayload([{ id: 301, type: 0, content: '未答题', selectedOptionId: '' }]);
-    // 当前固定为空答案提交 checkItem: null，仍需与小程序和后端确认最终语义。
+    // 已认可小程序和恢复后端契约固定为空答案提交 checkItem: null。
     expect(row.checkItem).toBeNull();
   });
 

@@ -59,6 +59,6 @@ export function buildBasePayload(form, { patientId, outpatientId, tableId = 4, k
   if (msList.length) {
     payload.msList = msList;
   }
-  // 当前版本不支持通过删除全部用药清空后端用药；后端提供明确 delete/replace 语义前，不提交空 msList。
+  // 恢复后端在 msList 存在时会替换用药；为避免空数组清空后端用药，不提交空 msList。
   return payload;
 }

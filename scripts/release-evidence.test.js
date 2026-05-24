@@ -54,7 +54,7 @@ describe('release-evidence', () => {
     expect(decision.readonlyGrayFeasible).toBe(true);
     expect(decision.restrictedWriteGrayFeasible).toBe(true);
     expect(decision.directProductionLaunchAllowed).toBe(false);
-    expect(decision.evidenceCompleteness.externalContracts).toBe('required_external_confirmation');
+    expect(decision.evidenceCompleteness.externalContracts).toBe('required_external_evidence');
   });
 
   it('does not treat unknown local unit tests as complete without CI evidence', () => {
@@ -185,6 +185,27 @@ describe('release-evidence', () => {
     expect(requests[0].ownerRole).toBe('mini_program_owner');
     expect(requests[0].blocksDirectLaunch).toBe(true);
     expect(requests[0].requiredEvidence.join(' ')).toContain('不得包含真实账号');
+  });
+
+  it('assigns rollout approval and artifact parity evidence to the release owner', () => {
+    const requests = buildManualEvidenceRequests({
+      requiredManualContracts: [
+        {
+          name: 'patient-scoped base write rollout approval',
+          status: 'required_external_approval',
+          risk: 'Release owner must approve shared base writes.',
+          blocksDirectLaunch: true,
+        },
+        {
+          name: 'server artifact parity for recovered contracts',
+          status: 'required_deployment_evidence',
+          risk: 'Server artifact parity is required.',
+          blocksDirectLaunch: true,
+        },
+      ],
+    });
+
+    expect(requests.map((item) => item.ownerRole)).toEqual(['release_owner', 'release_owner']);
   });
 
   it('renders markdown evidence without allowing direct production launch', () => {

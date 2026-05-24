@@ -35,7 +35,7 @@ describe('base payload helpers', () => {
       { patientId: 'patient-allow-1', outpatientId: 'outpatient-allow-1', keepEmpty: true },
     );
 
-    // 删除全部用药的后端语义未确认前，不通过空 msList 清空后端用药。
+    // 恢复后端会在 msList 存在时替换用药；空用药不通过空 msList 清空后端。
     expect(payload).not.toHaveProperty('msList');
   });
 

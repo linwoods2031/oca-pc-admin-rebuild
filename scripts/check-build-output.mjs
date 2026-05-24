@@ -4,6 +4,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const TEXT_EXTENSIONS = new Set(['.css', '.html', '.js', '.json', '.map', '.svg', '.txt']);
 const WRITE_BANNER = '当前允许写入生产 API';
+const RELEASE_PROFILES = new Set(['formal-candidate', 'readonly-gray', 'restricted-write-gray']);
 
 function joinLiteral(parts) {
   return parts.join('');
@@ -70,6 +71,57 @@ function createSensitiveRules() {
   ];
 }
 
+export function checkReleaseProfile(env = process.env) {
+  const releaseProfile = env.VITE_RELEASE_PROFILE || 'formal-candidate';
+  const writesRequested = env.VITE_ENABLE_PROD_WRITES === 'true';
+  const readonlyOverride = env.VITE_READONLY === 'true';
+  const issues = [];
+
+  if (!RELEASE_PROFILES.has(releaseProfile)) {
+    issues.push({
+      file: 'environment',
+      line: 1,
+      rule: 'release-profile-unknown',
+      message: `VITE_RELEASE_PROFILE must be one of ${Array.from(RELEASE_PROFILES).join(', ')}.`,
+    });
+  }
+
+  if (writesRequested && releaseProfile !== 'restricted-write-gray') {
+    issues.push({
+      file: 'environment',
+      line: 1,
+      rule: 'writes-enabled-outside-restricted-write-gray',
+      message: 'Formal review and readonly gray builds must not set VITE_ENABLE_PROD_WRITES=true. Use VITE_RELEASE_PROFILE=restricted-write-gray only for a separately approved allow-list write gray package.',
+    });
+  }
+
+  if (releaseProfile === 'restricted-write-gray' && !writesRequested) {
+    issues.push({
+      file: 'environment',
+      line: 1,
+      rule: 'restricted-write-gray-without-write-toggle',
+      message: 'A restricted-write-gray build must explicitly set VITE_ENABLE_PROD_WRITES=true; use the default formal-candidate profile for readonly candidate builds.',
+    });
+  }
+
+  if (releaseProfile === 'restricted-write-gray' && readonlyOverride) {
+    issues.push({
+      file: 'environment',
+      line: 1,
+      rule: 'restricted-write-gray-readonly-override',
+      message: 'A restricted-write-gray build must not set VITE_READONLY=true because that forces readonly mode and invalidates write gray verification.',
+    });
+  }
+
+  return {
+    releaseProfile,
+    writesRequested,
+    readonlyOverride,
+    allowWriteBanner: releaseProfile === 'restricted-write-gray' && writesRequested && !readonlyOverride,
+    issues,
+  };
+}
+
 function scanDistText({ root, distDir, allowWriteBanner }) {
   const issues = [];
   for (const file of collectFiles(distDir)) {
@@ -107,7 +159,8 @@ export function checkBuildOutput({ root = process.cwd(), dist = 'dist', env = pr
   const refs = [];
   const appBase = env.VITE_APP_BASE || '/pc-rebuild/';
   const expectedAssetPrefix = env.VITE_APP_BASE === '/' ? '/assets/' : normalizeAssetPrefix(appBase);
-  const allowWriteBanner = env.VITE_ENABLE_PROD_WRITES === 'true';
+  const releaseProfile = checkReleaseProfile(env);
+  issues.push(...releaseProfile.issues);
 
   if (!fs.existsSync(indexFile)) {
     issues.push({
@@ -116,7 +169,7 @@ export function checkBuildOutput({ root = process.cwd(), dist = 'dist', env = pr
       rule: 'missing-index',
       message: 'Run npm run build and ensure dist/index.html exists.',
     });
-    return { issues, refs, expectedAssetPrefix };
+    return { issues, refs, expectedAssetPrefix, releaseProfile };
   }
 
   const indexHtml = fs.readFileSync(indexFile, 'utf8');
@@ -132,8 +185,8 @@ export function checkBuildOutput({ root = process.cwd(), dist = 'dist', env = pr
     }
   }
 
-  issues.push(...scanDistText({ root, distDir, allowWriteBanner }));
-  return { issues, refs, expectedAssetPrefix };
+  issues.push(...scanDistText({ root, distDir, allowWriteBanner: releaseProfile.allowWriteBanner }));
+  return { issues, refs, expectedAssetPrefix, releaseProfile };
 }
 
 function printIssues(issues) {
@@ -153,6 +206,6 @@ if (isMain) {
     printIssues(result.issues);
     process.exit(1);
   }
-  console.log(`Build output check passed. assetPrefix=${result.expectedAssetPrefix} jsCssRefs=${result.refs.length}`);
+  console.log(`Build output check passed. releaseProfile=${result.releaseProfile.releaseProfile} writesRequested=${result.releaseProfile.writesRequested} assetPrefix=${result.expectedAssetPrefix} jsCssRefs=${result.refs.length}`);
   for (const ref of result.refs) console.log(`- ${ref}`);
 }

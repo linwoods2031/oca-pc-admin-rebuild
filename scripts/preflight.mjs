@@ -52,7 +52,7 @@ function combinedVerifyScript(packageJson) {
 function checkVerifyScript() {
   const packageJson = JSON.parse(readText('package.json'));
   const script = combinedVerifyScript(packageJson);
-  const required = ['test', 'build', 'preflight', 'check:api-boundary', 'check:sensitive', 'check:build-output'];
+  const required = ['test', 'build', 'preflight', 'check:api-boundary', 'check:sensitive', 'check:build-output', 'check:release-readiness'];
   for (const item of required) {
     if (!script.includes(item)) {
       fail(`package.json verify/verify:ci 必须包含 ${item}。`);
@@ -75,6 +75,7 @@ function checkDocs() {
     'release/current',
     '回滚',
     'allow-list',
+    'VITE_RELEASE_PROFILE',
   ]);
   checkRequiredText('README.md', [
     'npm run verify',
@@ -82,6 +83,7 @@ function checkDocs() {
     '受限写入灰度',
     '正式上线评审候选',
     '直接正式上线仍需人工批准',
+    'VITE_RELEASE_PROFILE',
   ]);
 }
 

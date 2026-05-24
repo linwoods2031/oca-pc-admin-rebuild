@@ -19,6 +19,8 @@
 
 人工/外部准入必须由发布负责人、后端负责人和小程序负责人完成，包含后端契约、小程序 payload、备份、回滚演练、账号权限、变更窗口和生产审批。无人工参与时，不得把 mock 契约测试解释成真实接口契约已确认。
 
+构建包还必须声明或继承发布档位：默认 `VITE_RELEASE_PROFILE=formal-candidate`，且必须是只读构建；受限写入灰度包必须单独设置 `VITE_RELEASE_PROFILE=restricted-write-gray` 和 `VITE_ENABLE_PROD_WRITES=true`，只能用于 allow-list 测试患者验证，不能作为正式上线评审候选包。
+
 ## 1. 本地构建要求
 
 生产灰度路径必须构建为 `/pc-rebuild/` base，路由必须使用 `createWebHistory(import.meta.env.BASE_URL)`。以下命令只用于发布负责人在授权环境中参考，Codex 不得执行。
@@ -32,6 +34,8 @@ VITE_APP_BASE=/pc-rebuild/ VITE_READONLY=true npm run build
 确认 `dist/index.html` 中的 JS/CSS 资源路径以 `/pc-rebuild/assets/` 开头，并记录真实 hashed 文件名用于上线验证。
 
 本地 `npm run dev` 通过 Vite proxy 连接既有生产 API 域名；运行时默认只读，只有显式设置 `VITE_ENABLE_PROD_WRITES=true` 才会放开业务写入 guard。
+
+默认 `npm run build && npm run check:build-output` 会按 `formal-candidate` 档位校验，只允许只读候选包通过。若构建写入灰度包，必须显式切换到 `restricted-write-gray` 档位，并单独保存为灰度验证证据。
 
 ## 2. 服务器备份
 
@@ -124,6 +128,7 @@ curl -fsSI https://<domain>/pc-rebuild/patients/<patient-id>
 ```bash
 cd /Users/w5/codex/老年评估/pc-rebuild
 VITE_APP_BASE=/pc-rebuild/ \
+VITE_RELEASE_PROFILE=restricted-write-gray \
 VITE_ENABLE_PROD_WRITES=true \
 VITE_WRITE_ALLOW_PATIENT_IDS=<patient-id> \
 VITE_WRITE_ALLOW_OUTPATIENT_IDS=<outpatient-id> \
@@ -162,17 +167,18 @@ npm run build
 正式上线评审候选必须同时满足以下条件：
 
 1. 本地 `npm run verify` 通过。
-2. 只读灰度验证完成，读链路、路由刷新、静态资源和只读 guard 均通过。
-3. 受限写入灰度验证完成，且仅覆盖 allow-list 中的授权测试患者、测试评估和测试报告。
-4. 以下接口契约已由后端和小程序负责人完成人工确认；当前仓库中的 mock fixtures 只用于自动化契约预期，不代表真实生产接口已确认：
+2. 正式评审候选构建保持默认 `VITE_RELEASE_PROFILE=formal-candidate`，且未设置 `VITE_ENABLE_PROD_WRITES=true`。
+3. 只读灰度验证完成，读链路、路由刷新、静态资源和只读 guard 均通过。
+4. 受限写入灰度验证完成，且仅覆盖 allow-list 中的授权测试患者、测试评估和测试报告；该写入灰度包必须标记为 `VITE_RELEASE_PROFILE=restricted-write-gray`，不得冒充正式评审候选包。
+5. 以下接口契约已由后端和小程序负责人完成人工确认；当前仓库中的 mock fixtures 只用于自动化契约预期，不代表真实生产接口已确认：
    - `getInfo` 归属字段语义。
    - `getBase(patientId)` 是否稳定返回 `outpatientId`。
    - `getBaseMedications(patientId)` 是患者级还是评估级。
    - `editCheckReport` payload 是否与小程序一致。
    - 已提交状态字段到底是 `state`、`reportState`、`status`、`finishState` 中哪些。
-5. 回滚包、回滚命令和回滚权限已演练，且发布负责人确认可在变更窗口内完成回退。
-6. 操作审计、数据备份、生产账号权限和凭据轮换均已确认。
-7. 生产静态目录仍不得直接覆盖，正式切换也必须使用 release/current 或等价可回滚软链策略。
+6. 回滚包、回滚命令和回滚权限已演练，且发布负责人确认可在变更窗口内完成回退。
+7. 操作审计、数据备份、生产账号权限和凭据轮换均已确认。
+8. 生产静态目录仍不得直接覆盖，正式切换也必须使用 release/current 或等价可回滚软链策略。
 
 正式上线仍需人工批准。Codex 可以生成代码、测试、文档和构建产物校验；Codex 不得执行生产部署，不得调用真实生产写接口，最终上线必须由发布负责人按变更单执行。
 

@@ -12,6 +12,8 @@
 2. 受限写入灰度：必须显式设置 `VITE_ENABLE_PROD_WRITES=true`，并配置患者、评估、报告 allow-list，仅用于授权测试患者。
 3. 正式上线评审候选：源码、测试、预检、构建和文档达到提交评审条件，但仍必须完成后端接口契约、小程序 payload 对齐、生产权限、回滚、审计和备份确认。
 
+构建脚本使用 `VITE_RELEASE_PROFILE` 区分候选包类型。默认值是 `formal-candidate`，必须保持只读；受限写入灰度包必须显式使用 `VITE_RELEASE_PROFILE=restricted-write-gray`，不能作为正式上线评审候选包提交。
+
 当前代码达到的是正式上线评审候选，不代表可直接正式上线；直接正式上线仍需人工批准或发布负责人批准。无人工参与时，只能完成源码和自动化准入，不能完成真实接口契约确认和生产审批。
 
 ## 已覆盖功能
@@ -59,6 +61,8 @@ npm run verify
 ```
 
 `npm run verify` 会执行 API 边界检查、敏感信息扫描、Vitest、生产默认构建、构建产物校验、preflight 和 release readiness 报告。该链路不需要生产密钥，不应设置真实生产账号或真实 allow-list id。
+
+默认 `npm run verify` 生成的是只读 `formal-candidate` 自动化准入结果。若构建环境设置了 `VITE_ENABLE_PROD_WRITES=true` 但没有同时设置 `VITE_RELEASE_PROFILE=restricted-write-gray`，构建产物检查和 release readiness 会失败，避免写入灰度包被误当作正式上线评审候选包。
 
 正式上线不是只靠前端决定，还需要完成：
 

@@ -25,7 +25,7 @@
 
 ## 1. 本地构建要求
 
-生产灰度路径必须构建为 `/pc-rebuild/` base，路由必须使用 `createWebHistory(import.meta.env.BASE_URL)`。以下命令只用于发布负责人在授权环境中参考，Codex 不得执行。
+生产灰度路径必须构建为 `/pc-rebuild/` base。当前用户测试灰度包使用 `createWebHashHistory(import.meta.env.BASE_URL)`，避免服务器缺少 `/pc-rebuild/*` history fallback 时刷新页面回到旧后台；如后续切回 history 模式，必须先补齐 Nginx fallback 并完成刷新、深链和旧后台隔离回归。以下命令只用于发布负责人在授权环境中参考，Codex 不得执行。
 
 ```bash
 cd /Users/w5/codex/老年评估/pc-rebuild
@@ -102,15 +102,20 @@ ssh <user>@<server> 'sudo systemctl reload nginx'
 
 ## 5. 灰度验证
 
-不要只验证 `/pc-rebuild/assets/` 目录。应从 `dist/index.html` 获取真实 hashed 资源文件名后验证：
+不要只验证 `/pc-rebuild/assets/` 目录。应从 `dist/index.html` 获取真实 hashed 资源文件名后验证静态入口和资源：
 
 ```bash
 curl -fsSI https://<domain>/pc-rebuild/
 curl -fsSI https://<domain>/pc-rebuild/assets/<hashed>.js
 curl -fsSI https://<domain>/pc-rebuild/assets/<hashed>.css
-curl -fsSI https://<domain>/pc-rebuild/patients
-curl -fsSI https://<domain>/pc-rebuild/follow-up
-curl -fsSI https://<domain>/pc-rebuild/patients/<patient-id>
+```
+
+当前灰度包使用 hash 路由，`#/patients` 之后的片段不会发送到服务器；深链和刷新必须用浏览器验证：
+
+```text
+https://<domain>/pc-rebuild/#/patients
+https://<domain>/pc-rebuild/#/follow-up
+https://<domain>/pc-rebuild/#/patients/<patient-id>
 ```
 
 浏览器验证清单：

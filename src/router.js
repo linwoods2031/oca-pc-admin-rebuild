@@ -1,4 +1,4 @@
-import { createRouter, createWebHistory } from 'vue-router';
+import { createRouter, createWebHashHistory } from 'vue-router';
 import { getToken } from './session.js';
 import LoginView from './views/LoginView.vue';
 import LayoutView from './views/LayoutView.vue';
@@ -8,7 +8,7 @@ import PatientDetailView from './views/PatientDetailView.vue';
 import PatientFormView from './views/PatientFormView.vue';
 
 export const router = createRouter({
-  history: createWebHistory(import.meta.env.BASE_URL),
+  history: createWebHashHistory(import.meta.env.BASE_URL),
   routes: [
     { path: '/login', component: LoginView },
     {

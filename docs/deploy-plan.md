@@ -188,14 +188,15 @@ VITE_ENABLE_SESSION_WRITE_ALLOWLIST=true
 5. 正式评审候选构建保持默认 `VITE_RELEASE_PROFILE=formal-candidate`，且未设置 `VITE_ENABLE_PROD_WRITES=true`。
 6. 只读灰度验证完成，读链路、路由刷新、静态资源和只读 guard 均通过。
 7. 受限写入灰度验证完成，且仅覆盖 allow-list 中的授权测试患者、测试评估和测试报告；该写入灰度包必须标记为 `VITE_RELEASE_PROFILE=restricted-write-gray`，不得冒充正式评审候选包。
-8. 患者归属字段、量表保存 payload、提交态字段、一般情况表和用药范围已从恢复后端和已认可小程序壳反查确认，见 `docs/recovered-contracts.md`。业务用户已确认 PC 端一般情况表和当前用药正式使用时只读。小程序最终量表口径见 `docs/mini-program-final-requirements.md`，跨系统对齐报告见 `docs/cross-system-alignment-report.md`。当前仓库中的 mock fixtures 只用于自动化契约预期，不代表真实生产验证结果。
-9. 以下外部证据已由发布负责人补齐：
+8. 灰度路径部署后，核对 `/pc-rebuild/release-info.json` 返回当前 commit、`formal-candidate` 或对应灰度档位、`router=hash` 和只读状态；该文件只用于版本核验，不得写入真实账号、token、患者 id 或 allow-list id。
+9. 患者归属字段、量表保存 payload、提交态字段、一般情况表和用药范围已从恢复后端和已认可小程序壳反查确认，见 `docs/recovered-contracts.md`。业务用户已确认 PC 端一般情况表和当前用药正式使用时只读。小程序最终量表口径见 `docs/mini-program-final-requirements.md`，跨系统对齐报告见 `docs/cross-system-alignment-report.md`。当前仓库中的 mock fixtures 只用于自动化契约预期，不代表真实生产验证结果。
+10. 以下外部证据已由发布负责人补齐：
    - 线上运行包与本地恢复材料一致。
    - 已认可小程序版本已经完成微信正式提审/发布，并且正式长期二维码已经切换到新版本。
    - 只读灰度和受限写入灰度均有脱敏记录，且不包含真实账号、真实患者信息或真实 allow-list id。
-10. 回滚包、回滚命令和回滚权限已演练，且发布负责人确认可在变更窗口内完成回退。
-11. 操作审计、数据备份、生产账号权限和凭据轮换均已确认。
-12. 生产静态目录仍不得直接覆盖，正式切换也必须使用 release/current 或等价可回滚软链策略。
+11. 回滚包、回滚命令和回滚权限已演练，且发布负责人确认可在变更窗口内完成回退。
+12. 操作审计、数据备份、生产账号权限和凭据轮换均已确认。
+13. 生产静态目录仍不得直接覆盖，正式切换也必须使用 release/current 或等价可回滚软链策略。
 
 正式上线仍需人工批准。Codex 可以生成代码、测试、文档和构建产物校验；Codex 不得执行生产部署，不得调用真实生产写接口，最终上线必须由发布负责人按变更单执行。
 

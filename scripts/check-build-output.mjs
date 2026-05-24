@@ -152,6 +152,93 @@ function scanDistText({ root, distDir, allowWriteBanner }) {
   return issues;
 }
 
+function checkReleaseInfo({ root, dist, distDir, appBase, releaseProfile }) {
+  const issues = [];
+  const releaseInfoFile = path.join(distDir, 'release-info.json');
+  const relativeFile = `${dist}/release-info.json`;
+  let releaseInfo = null;
+
+  if (!fs.existsSync(releaseInfoFile)) {
+    return {
+      releaseInfo,
+      issues: [{
+        file: relativeFile,
+        line: 1,
+        rule: 'missing-release-info',
+        message: 'Run npm run build so dist/release-info.json is generated for gray deployment version verification.',
+      }],
+    };
+  }
+
+  try {
+    releaseInfo = JSON.parse(fs.readFileSync(releaseInfoFile, 'utf8'));
+  } catch {
+    issues.push({
+      file: relativeFile,
+      line: 1,
+      rule: 'invalid-release-info-json',
+      message: 'dist/release-info.json must be valid JSON.',
+    });
+    return { releaseInfo, issues };
+  }
+
+  if (releaseInfo.app !== 'oca-pc-admin-rebuild') {
+    issues.push({
+      file: relativeFile,
+      line: 1,
+      rule: 'release-info-app',
+      message: 'release-info.json must identify app as oca-pc-admin-rebuild.',
+    });
+  }
+
+  if (releaseInfo.releaseProfile !== releaseProfile.releaseProfile) {
+    issues.push({
+      file: relativeFile,
+      line: 1,
+      rule: 'release-info-profile',
+      message: `release-info.json releaseProfile must be "${releaseProfile.releaseProfile}" for this build.`,
+    });
+  }
+
+  if (releaseInfo.base !== appBase) {
+    issues.push({
+      file: relativeFile,
+      line: 1,
+      rule: 'release-info-base',
+      message: `release-info.json base must be "${appBase}" for this build.`,
+    });
+  }
+
+  if (releaseInfo.router !== 'hash') {
+    issues.push({
+      file: relativeFile,
+      line: 1,
+      rule: 'release-info-router',
+      message: 'release-info.json router must be "hash" so /pc-rebuild/ gray links can be refreshed safely.',
+    });
+  }
+
+  if (!releaseProfile.allowWriteBanner && releaseInfo.productionWritesEnabled) {
+    issues.push({
+      file: relativeFile,
+      line: 1,
+      rule: 'release-info-writes-enabled',
+      message: 'formal-candidate and readonly-gray release-info.json must report productionWritesEnabled=false.',
+    });
+  }
+
+  if (!releaseProfile.allowWriteBanner && releaseInfo.readonly !== true) {
+    issues.push({
+      file: relativeFile,
+      line: 1,
+      rule: 'release-info-readonly',
+      message: 'formal-candidate and readonly-gray release-info.json must report readonly=true.',
+    });
+  }
+
+  return { releaseInfo, issues };
+}
+
 export function checkBuildOutput({ root = process.cwd(), dist = 'dist', env = process.env } = {}) {
   const distDir = path.join(root, dist);
   const indexFile = path.join(distDir, 'index.html');
@@ -160,6 +247,7 @@ export function checkBuildOutput({ root = process.cwd(), dist = 'dist', env = pr
   const appBase = env.VITE_APP_BASE || '/pc-rebuild/';
   const expectedAssetPrefix = env.VITE_APP_BASE === '/' ? '/assets/' : normalizeAssetPrefix(appBase);
   const releaseProfile = checkReleaseProfile(env);
+  let releaseInfo = null;
   issues.push(...releaseProfile.issues);
 
   if (!fs.existsSync(indexFile)) {
@@ -186,7 +274,10 @@ export function checkBuildOutput({ root = process.cwd(), dist = 'dist', env = pr
   }
 
   issues.push(...scanDistText({ root, distDir, allowWriteBanner: releaseProfile.allowWriteBanner }));
-  return { issues, refs, expectedAssetPrefix, releaseProfile };
+  const releaseInfoResult = checkReleaseInfo({ root, dist, distDir, appBase, releaseProfile });
+  releaseInfo = releaseInfoResult.releaseInfo;
+  issues.push(...releaseInfoResult.issues);
+  return { issues, refs, expectedAssetPrefix, releaseProfile, releaseInfo };
 }
 
 function printIssues(issues) {
@@ -206,6 +297,9 @@ if (isMain) {
     printIssues(result.issues);
     process.exit(1);
   }
-  console.log(`Build output check passed. releaseProfile=${result.releaseProfile.releaseProfile} writesRequested=${result.releaseProfile.writesRequested} assetPrefix=${result.expectedAssetPrefix} jsCssRefs=${result.refs.length}`);
+  const releaseInfoSummary = result.releaseInfo
+    ? ` releaseInfoCommit=${result.releaseInfo.commit?.shortSha || 'unknown'} releaseInfoReadonly=${result.releaseInfo.readonly}`
+    : '';
+  console.log(`Build output check passed. releaseProfile=${result.releaseProfile.releaseProfile} writesRequested=${result.releaseProfile.writesRequested} assetPrefix=${result.expectedAssetPrefix} jsCssRefs=${result.refs.length}${releaseInfoSummary}`);
   for (const ref of result.refs) console.log(`- ${ref}`);
 }

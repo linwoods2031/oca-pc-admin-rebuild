@@ -17,6 +17,25 @@ function writeDist({ banner = '' } = {}) {
   );
   fs.writeFileSync(path.join(dist, 'assets', 'index.js'), `console.log(${JSON.stringify(banner)});\n`);
   fs.writeFileSync(path.join(dist, 'assets', 'index.css'), 'body{margin:0}\n');
+  fs.writeFileSync(
+    path.join(dist, 'release-info.json'),
+    `${JSON.stringify({
+      schemaVersion: 1,
+      app: 'oca-pc-admin-rebuild',
+      commit: { shortSha: 'mock', dirty: false },
+      releaseProfile: 'formal-candidate',
+      base: '/pc-rebuild/',
+      router: 'hash',
+      readonly: true,
+      productionWritesEnabled: false,
+    })}\n`,
+  );
+}
+
+function writeReleaseInfo(overrides) {
+  const file = path.join(tmpDir, 'dist', 'release-info.json');
+  const base = JSON.parse(fs.readFileSync(file, 'utf8'));
+  fs.writeFileSync(file, `${JSON.stringify({ ...base, ...overrides })}\n`);
 }
 
 beforeEach(() => {
@@ -51,6 +70,11 @@ describe('check-build-output', () => {
 
   it('allows the write banner only for an explicit restricted write gray package', () => {
     writeDist({ banner: WRITE_BANNER });
+    writeReleaseInfo({
+      releaseProfile: 'restricted-write-gray',
+      readonly: false,
+      productionWritesEnabled: true,
+    });
 
     const result = checkBuildOutput({
       root: tmpDir,
@@ -62,6 +86,25 @@ describe('check-build-output', () => {
 
     expect(result.issues).toEqual([]);
     expect(result.releaseProfile.allowWriteBanner).toBe(true);
+  });
+
+  it('requires release-info for gray deployment version checks', () => {
+    writeDist();
+    fs.rmSync(path.join(tmpDir, 'dist', 'release-info.json'));
+
+    const result = checkBuildOutput({ root: tmpDir, env: {} });
+
+    expect(result.issues.map((issue) => issue.rule)).toContain('missing-release-info');
+  });
+
+  it('blocks readonly candidate builds whose release-info reports writes enabled', () => {
+    writeDist();
+    writeReleaseInfo({ readonly: false, productionWritesEnabled: true });
+
+    const result = checkBuildOutput({ root: tmpDir, env: {} });
+
+    expect(result.issues.map((issue) => issue.rule)).toContain('release-info-writes-enabled');
+    expect(result.issues.map((issue) => issue.rule)).toContain('release-info-readonly');
   });
 
   it('requires restricted write gray packages to opt into writes explicitly', () => {

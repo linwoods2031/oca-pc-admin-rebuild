@@ -64,6 +64,8 @@ npm run verify
 
 默认 `npm run verify` 生成的是只读 `formal-candidate` 自动化准入结果。若构建环境设置了 `VITE_ENABLE_PROD_WRITES=true` 但没有同时设置 `VITE_RELEASE_PROFILE=restricted-write-gray`，构建产物检查和 release readiness 会失败，避免写入灰度包被误当作正式上线评审候选包。
 
+`npm run build` 会生成 `dist/release-info.json`，用于灰度路径上线后核对当前 PC 包的 commit、发布档位、资源 base、hash 路由和只读状态。该文件不包含真实账号、token、患者 id 或 allow-list id。
+
 受限写入灰度可以用于完整业务流程测试，但必须与正式候选包分离。测试包可额外设置 `VITE_ENABLE_SESSION_WRITE_ALLOWLIST=true`，使本会话刚新增的测试患者继续允许编辑，并在患者详情页显示“创建测试评估”测试按钮；该能力只能用于受控测试入口和脱敏测试样本，不能作为正式上线候选能力提交。一般情况表和当前用药仍保持 PC 只读，修改继续走平板/小程序。
 
 生成评审证据包时运行：

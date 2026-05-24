@@ -100,8 +100,8 @@ npm run release:evidence:verified:markdown
 - 默认启用只读保护，包括本地 dev 和生产构建；除登录外，业务写请求默认会被拦截。
 - 如需受限写入灰度，必须经发布负责人确认后显式设置 `VITE_ENABLE_PROD_WRITES=true`，且只应使用明确的 `<test-patient>` 和未提交测试评估。
 - 受限写入灰度必须配置 allow-list：`VITE_WRITE_ALLOW_PATIENT_IDS`、`VITE_WRITE_ALLOW_OUTPATIENT_IDS`、`VITE_WRITE_ALLOW_REPORT_IDS`。
-- 新增患者默认禁止；如需验证新增，必须显式设置 `VITE_ALLOW_CREATE_PATIENT=true`，并确认归属字段语义。
+- 新增患者默认禁止；如需验证新增，必须显式设置 `VITE_ALLOW_CREATE_PATIENT=true`，并确认线上运行包与恢复材料中的归属字段语义一致。
 - 不得提交真实 allow-list id、真实账号、患者姓名、身份证、手机号、token 或生产验证细节。
-- 新增患者归属字段优先从当前用户/部门信息推导，无法推导时会停止新增，需要后端确认归属规则。
+- 新增患者归属字段已按恢复后端确认从当前用户/部门信息推导；无法推导时会停止新增。
 - 当前后端一般情况表读取接口按 `patientId` 返回，若无法确认返回记录与当前 `outpatientId` 关联，前端会禁止保存以避免误更新其他评估。
-- 当前版本不支持通过删除全部用药来清空后端用药；需要后端提供明确 delete/replace 语义后再开放。
+- 恢复后端已确认 `msList` 存在时会替换用药；当前版本仍不支持通过空 `msList` 清空后端用药。

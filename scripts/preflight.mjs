@@ -61,6 +61,9 @@ function checkVerifyScript() {
   if (!packageJson.scripts?.['release:evidence'] || !packageJson.scripts?.['release:evidence:verified']) {
     fail('package.json 必须包含 release:evidence 和 release:evidence:verified，用于生成发布证据包。');
   }
+  if (!packageJson.scripts?.['release:cross-system'] || !packageJson.scripts?.['release:cross-system:markdown']) {
+    fail('package.json 必须包含 release:cross-system 和 release:cross-system:markdown，用于生成跨系统对齐报告。');
+  }
 }
 
 function checkRequiredText(file, phrases) {
@@ -82,6 +85,8 @@ function checkDocs() {
     'release:evidence:verified',
     '一般情况表和当前用药不纳入 PC 写入灰度范围',
     'docs/mini-program-final-requirements.md',
+    'release:cross-system:markdown',
+    'docs/cross-system-alignment-report.md',
   ]);
   checkRequiredText('README.md', [
     'npm run verify',
@@ -91,8 +96,10 @@ function checkDocs() {
     '直接正式上线仍需人工批准',
     'VITE_RELEASE_PROFILE',
     'release:evidence:verified',
+    'release:cross-system:markdown',
     '一般情况调查表和当前用药只读',
     'docs/mini-program-final-requirements.md',
+    'docs/cross-system-alignment-report.md',
   ]);
   checkRequiredText('docs/release-evidence.md', [
     '发布证据包',
@@ -101,6 +108,8 @@ function checkDocs() {
     'directProductionLaunchAllowed=false',
     'docs/recovered-contracts.md',
     'docs/mini-program-final-requirements.md',
+    'docs/cross-system-alignment-report.md',
+    'release:cross-system:markdown',
   ]);
   checkRequiredText('docs/recovered-contracts.md', [
     '恢复代码契约反查记录',
@@ -114,6 +123,13 @@ function checkDocs() {
     'MMSE',
     'FRA',
     'PC 后台不单独定义上述量表评分和结论规则',
+  ]);
+  checkRequiredText('docs/cross-system-alignment-report.md', [
+    '跨系统上线对齐报告',
+    'release:cross-system:markdown',
+    'PC 正式版一般情况表和当前用药保持只读',
+    '微信正式发布',
+    '运行包一致性',
   ]);
 }
 

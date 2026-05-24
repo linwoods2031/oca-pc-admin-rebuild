@@ -69,9 +69,10 @@ npm run verify
 ```bash
 npm run release:evidence:verified
 npm run release:evidence:verified:markdown
+npm run release:cross-system:markdown
 ```
 
-证据包会汇总 commit、发布档位、自动化 gate、GitHub Actions 状态、已从恢复材料确认的契约和仍需外部批准的事项。动态证据只用于评审单附件，不提交到仓库；模板说明见 `docs/release-evidence.md`。
+证据包会汇总 commit、发布档位、自动化 gate、GitHub Actions 状态、已从恢复材料确认的契约和仍需外部批准的事项。`release:cross-system:markdown` 会额外扫描本机小程序维护目录、已认可小程序壳、恢复后端热修源码和 SQL 热修文件，生成 PC/小程序/后端/SQL 对齐报告。动态证据只用于评审单附件，不提交到仓库；模板说明见 `docs/release-evidence.md` 和 `docs/cross-system-alignment-report.md`。
 
 `submitFormalReviewCandidate=true` 必须同时满足干净工作树、本地 `release:evidence:verified` 通过和 GitHub Actions `Verify frontend safety gates` 成功。只有本地通过或只有 CI 通过时，证据包会分别标记本地/CI 候选状态，但最终正式评审候选字段保持 false。
 

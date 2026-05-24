@@ -8,9 +8,12 @@
 npm ci
 npm run release:evidence:verified
 npm run release:evidence:verified:markdown
+npm run release:cross-system:markdown
 ```
 
 `release:evidence:verified` 会先执行完整 `npm run verify`，通过后才生成 JSON；`release:evidence:verified:markdown` 会生成可附到评审单的 Markdown。最终 `submitFormalReviewCandidate=true` 必须同时满足干净工作树、本地 verified 命令通过和 GitHub Actions `Verify frontend safety gates` 成功。如果本机没有 GitHub CLI 或没有仓库读取权限，可以先运行 `npm run release:evidence` 生成本地 JSON，但最终正式评审候选字段会保持 false，直到发布负责人补齐 CI 成功证据。
+
+`release:cross-system:markdown` 会生成 PC 后台、已认可小程序壳、恢复后端热修源码和 SQL 热修材料的脱敏对齐报告。该报告只证明本地恢复材料和用户最终口径能对齐；微信正式发布、服务器运行包一致性、备份、回滚、权限和审计仍是发布负责人外部证据。
 
 ## 自动化证据
 
@@ -28,6 +31,7 @@ npm run release:evidence:verified:markdown
 - `directProductionLaunchAllowed=false`。
 - 已从恢复代码和已认可小程序壳反查确认的契约，例如患者归属字段、量表保存 payload、提交态字段、一般情况表和用药范围。
 - 已从业务用户使用口径确认的外部决策，例如 PC 端一般情况表和当前用药保持只读。
+- 跨系统对齐报告入口，见 `docs/cross-system-alignment-report.md`。
 
 默认 `formal-candidate` 必须是只读候选包。受限写入灰度包必须使用 `VITE_RELEASE_PROFILE=restricted-write-gray`，只能作为 allow-list 测试患者验证证据，不能作为正式上线评审候选包。
 
@@ -53,6 +57,8 @@ npm run release:evidence:verified:markdown
 以下项目必须由发布负责人、后端负责人或小程序负责人补充脱敏证据，不得包含真实账号、真实患者信息、真实 allow-list id、token 或生产验证细节：
 
 - `server artifact parity for recovered contracts`：确认线上运行包与本地恢复材料一致，才能把上述 recovered contracts 作为发布证据使用。
+- `cross-system alignment evidence`：附上 `npm run release:cross-system:markdown` 输出，证明 PC、小程序最终口径、恢复后端热修和 SQL 热修材料在本地可对齐。
+- 微信正式发布记录：确认已认可小程序版本完成正式提审/发布，并确认正式长期二维码已经切换到新版本；体验二维码不能替代正式发布证据。
 - 只读灰度记录：读链路、路由刷新、静态资源和只读 guard。
 - 受限写入灰度记录：仅 allow-list 测试患者、测试评估、测试报告。
 - 回滚演练记录。

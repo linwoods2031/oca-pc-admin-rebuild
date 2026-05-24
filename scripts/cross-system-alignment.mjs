@@ -135,6 +135,13 @@ function buildPcChecks(root) {
       terms: ['PC 后台正式使用时不允许修改一般情况表和当前用药', '用药修改在平板端完成', '因 PC 不开放一般情况表和当前用药保存'],
       evidence: ['Recovered contracts separate the storage-scope confirmation from the PC rollout decision.'],
     }),
+    checkTextFile({
+      base: root,
+      file: 'src/utils/reportDisplay.js',
+      name: 'PC report display puts TCM transformed scores in score columns',
+      terms: ['转化分：', 'scoreText', 'remarkText', 'exScoreText', 'exRemarkText'],
+      evidence: ['PC display logic splits accepted TCM remark text so transformed scores appear under score columns.'],
+    }),
   ];
 }
 
@@ -172,7 +179,7 @@ function buildMiniOpsChecks(miniMaintenanceDir) {
       base: miniMaintenanceDir,
       file: 'OPERATIONS.md',
       name: 'Operations log records latest accepted preview and old formal QR separation',
-      terms: [previewVersion, '当前正式长期二维码仍是旧正式包', '住院号搜索', '修改患者', '上次得分', '上次结论', '预计复诊日期'],
+      terms: [previewVersion, '当前正式长期二维码仍是旧正式包', '住院号搜索', '修改患者', '上次得分', '上次结论', '预计复诊日期', '转化分', '有/无'],
       evidence: ['The operations log separates the latest accepted preview evidence from the still-old formal QR.'],
     }),
     {
@@ -234,6 +241,13 @@ function buildMiniShellChecks(miniShellDir) {
     }),
     checkTextFile({
       base: miniShellDir,
+      file: 'pages/assessment/menu/index.js',
+      name: 'Mini-program assessment menu puts TCM transformed scores in score fields',
+      terms: ['转化分：', 'scoreText', 'remarkText', 'exScoreText', 'exRemarkText'],
+      evidence: ['The accepted mini-program shell splits TCM transformed scores into the score display fields.'],
+    }),
+    checkTextFile({
+      base: miniShellDir,
       file: 'pages/patient/list/index.wxml',
       name: 'Mini-program patient list supports inpatient number search',
       terms: ['住院号', '输入住院号搜索'],
@@ -250,7 +264,7 @@ function buildMiniShellChecks(miniShellDir) {
       base: miniShellDir,
       file: 'pages/assessment/base/index.wxml',
       name: 'Mini-program base form includes final added foundation fields',
-      terms: ['居住楼层', '电梯房', '跌倒史', '义齿'],
+      terms: ['居住楼层', '电梯房', '跌倒史', '义齿', '尿失禁史', '便失禁史'],
       evidence: ['The accepted mini-program shell contains the final foundation fields requested by the user.'],
     }),
   ];
@@ -306,6 +320,13 @@ function buildBackendSqlChecks(miniMaintenanceDir) {
     }),
     checkTextFile({
       base: miniMaintenanceDir,
+      file: 'db-hotfix/2026-05-20-feedback-batch.sql',
+      name: 'SQL hotfix records final base history labels as have/none',
+      terms: ['oca_is_uracratia', 'oca_is_bowel_problem', '无', '有'],
+      evidence: ['The recovered SQL hotfix records the final have/none labels for incontinence history fields.'],
+    }),
+    checkTextFile({
+      base: miniMaintenanceDir,
       file: 'backend-hotfix-src/com/qihao/udp/oca/web/controller/business/OutpatientCheckController.java',
       name: 'Recovered backend controller sorts ADL/IADL/FRA and filters sex-specific questions',
       terms: ['FEMALE_ONLY_MARKERS', 'MALE_ONLY_MARKERS', 'ADL_TABLE_ID', 'IADL_TABLE_ID', 'FRA_TABLE_ID', 'sortQuestionsById'],
@@ -324,6 +345,13 @@ function buildBackendSqlChecks(miniMaintenanceDir) {
       name: 'Recovered backend scorer handles TCM sex-specific markers',
       terms: ['FEMALE_ONLY_MARKERS', 'MALE_ONLY_MARKERS', '湿热质'],
       evidence: ['The recovered backend scorer contains the final TCM sex-specific marker handling.'],
+    }),
+    checkTextFile({
+      base: miniMaintenanceDir,
+      file: 'backend-hotfix-src/com/qihao/udp/oca/web/controller/business/OutpatientCompositeController.java',
+      name: 'Recovered backend PDF print puts TCM transformed scores in score columns',
+      terms: ['TCM_TRANSFORMED_SCORE_MARKER', 'reportScoreText', 'previousScoreText', 'reportRemarkText', 'previousRemarkText'],
+      evidence: ['The recovered backend PDF print source splits TCM transformed scores into score columns.'],
     }),
   ];
 }

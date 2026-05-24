@@ -269,6 +269,7 @@ import {
 } from '../config/runtime.js';
 import { emptyMedicine, normalizeMsList } from '../utils/basePayload.js';
 import { verifyBaseAssociation } from '../utils/baseWritable.js';
+import { reportDisplayText } from '../utils/reportDisplay.js';
 import { buildQuestionPayload, isAssessmentSubmitted, isReportSubmitted, scoreText } from '../utils/reportPayload.js';
 import { decideReportWritable } from '../utils/reportWritable.js';
 
@@ -391,13 +392,11 @@ const showTestAssessmentCreate = computed(
 
 function mapTable(item) {
   const table = item.checkTable || {};
+  const displayText = reportDisplayText(item);
   return {
     ...item,
     tableName: table.name || '量表',
-    scoreText: valueText(item.score),
-    remarkText: valueText(item.remark),
-    exScoreText: valueText(item.exScore),
-    exRemarkText: valueText(item.exRemark),
+    ...displayText,
   };
 }
 

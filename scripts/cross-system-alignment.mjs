@@ -336,9 +336,10 @@ export function buildCrossSystemAlignmentReport({
     generatedAt: new Date().toISOString(),
     scope: 'PC admin release candidate, accepted mini-program shell, and recovered backend/SQL alignment evidence',
     inputs: {
-      pcRepositoryRoot: root,
-      miniMaintenanceDir,
-      miniShellDir,
+      pcRepositoryRoot: '<pc-repository-root>',
+      miniMaintenanceDir: '<mini-maintenance-dir>',
+      miniShellDir: '<mini-shell-dir>',
+      localPathsRedacted: true,
     },
     sections,
     summary,

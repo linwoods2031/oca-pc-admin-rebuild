@@ -259,6 +259,7 @@ import {
   assertReportWriteAllowed,
   allowSessionWriteIds,
   baseWriteDisabledMessage,
+  hasOutpatientWriteId,
   hasPatientWriteId,
   isBaseWriteEnabled,
   isReadOnlyMode,
@@ -571,6 +572,7 @@ async function verifyReportWritable() {
     assessmentTables: result,
     currentOutpatientId: currentOutpatientId.value,
     reportMeta: reportMeta.value,
+    allowSessionAssessment: allowSessionWriteIds && hasOutpatientWriteId(currentOutpatientId.value),
   });
   currentAssessmentState.value = decision.assessmentState ?? currentAssessmentState.value;
   if (decision.freshReport) reportMeta.value = { ...decision.mergedReport, ...mapTable(decision.freshReport) };

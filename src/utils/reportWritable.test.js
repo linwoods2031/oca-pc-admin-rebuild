@@ -36,6 +36,19 @@ describe('report writable guards', () => {
     ).toBe('fresh-assessment-missing');
   });
 
+  it('allows session-created test assessments only when explicitly marked', () => {
+    const decision = decideReportWritable({
+      freshPatient,
+      assessmentTables,
+      currentOutpatientId: 'outpatient-session-1',
+      reportMeta: { id: 'report-allow-1' },
+      allowSessionAssessment: true,
+    });
+
+    expect(decision.allowed).toBe(true);
+    expect(decision.freshAssessment.source).toBe('session-created-test-assessment');
+  });
+
   it('blocks submitted assessment and submitted report fields', () => {
     expect(
       decideReportWritable({

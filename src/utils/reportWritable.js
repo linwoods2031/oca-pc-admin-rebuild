@@ -30,7 +30,13 @@ export function findReportByMeta(assessmentTables, reportMeta = {}) {
   ) || null;
 }
 
-export function decideReportWritable({ freshPatient, assessmentTables, currentOutpatientId, reportMeta }) {
+export function decideReportWritable({
+  freshPatient,
+  assessmentTables,
+  currentOutpatientId,
+  reportMeta,
+  allowSessionAssessment = false,
+}) {
   if (!freshPatient) {
     return decision(false, 'fresh-patient-missing', '保存前无法读取当前患者，已禁止保存量表。');
   }
@@ -38,7 +44,15 @@ export function decideReportWritable({ freshPatient, assessmentTables, currentOu
     return decision(false, 'fresh-check-list-invalid', '保存前无法确认当前患者评估列表，已禁止保存量表。');
   }
 
-  const freshAssessment = findAssessmentById(freshPatient.checkList, currentOutpatientId);
+  const freshAssessment =
+    findAssessmentById(freshPatient.checkList, currentOutpatientId) ||
+    (allowSessionAssessment
+      ? {
+          id: currentOutpatientId,
+          state: assessmentTables?.state ?? assessmentTables?.outpatientState ?? 0,
+          source: 'session-created-test-assessment',
+        }
+      : null);
   if (!freshAssessment) {
     return decision(false, 'fresh-assessment-missing', '保存前无法在患者评估列表中确认当前评估，已禁止保存量表。');
   }

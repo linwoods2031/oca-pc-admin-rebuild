@@ -26,8 +26,9 @@ function writePcFixture(root) {
 }
 
 function writeMiniMaintenanceFixture(root) {
-  writeFile(root, 'OPERATIONS.md', '1.1.50\n当前正式长期二维码仍是旧正式包\n住院号搜索\n修改患者\n上次得分\n上次结论\n预计复诊日期');
-  writeFile(root, 'artifacts/oca-preview-qrcode-1.1.50.jpg', 'mock-preview');
+  writeFile(root, 'OPERATIONS.md', '1.1.51\n当前正式长期二维码仍是旧正式包\n住院号搜索\n修改患者\n上次得分\n上次结论\n预计复诊日期');
+  writeFile(root, 'artifacts/oca-preview-qrcode-1.1.50.jpg', 'old-preview');
+  writeFile(root, 'artifacts/oca-preview-qrcode-1.1.51.jpg', 'mock-preview');
   writeFile(root, 'artifacts/oca-preview-qrcode-latest.jpg', 'mock-preview');
   writeFile(root, 'artifacts/miniprogram-formal-qrcode-current.png', 'mock-formal');
   writeFile(root, 'db-hotfix/2026-04-30-feedback-fixes.sql', 'Zung氏焦虑自评量表（SAS） 简易智力状况检查表（MMSE） 33 分 限女性 限男性 握力 步速 用药史');
@@ -83,6 +84,23 @@ describe('cross-system alignment report', () => {
     expect(report.summary.unknown).toBe(2);
     expect(report.finalGate.localCrossSystemAlignmentCandidate).toBe(false);
     expect(report.finalGate.directProductionLaunchAllowed).toBe(false);
+  });
+
+  it('fails when the latest preview alias points at an older QR code', () => {
+    const root = makeFixtureRoot();
+    const miniMaintenanceDir = makeFixtureRoot();
+    const miniShellDir = makeFixtureRoot();
+    writePcFixture(root);
+    writeMiniMaintenanceFixture(miniMaintenanceDir);
+    writeMiniShellFixture(miniShellDir);
+    writeFile(miniMaintenanceDir, 'artifacts/oca-preview-qrcode-latest.jpg', 'old-preview');
+
+    const report = buildCrossSystemAlignmentReport({ root, miniMaintenanceDir, miniShellDir });
+    const previewCheck = report.sections.miniProgramOperations.find((check) => check.name === 'Latest mini-program preview QR artifact is present and aliased');
+
+    expect(previewCheck.status).toBe('fail');
+    expect(previewCheck.missing.join('\n')).toContain('latest preview QR alias does not match 1.1.51 artifact');
+    expect(report.finalGate.localCrossSystemAlignmentCandidate).toBe(false);
   });
 
   it('renders a release-owner friendly markdown summary', () => {

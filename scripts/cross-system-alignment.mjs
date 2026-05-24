@@ -27,6 +27,35 @@ function sameFileContent(a, b) {
   return fs.readFileSync(a).equals(fs.readFileSync(b));
 }
 
+function comparePreviewVersions(a, b) {
+  const left = a.split('.').map((part) => Number(part));
+  const right = b.split('.').map((part) => Number(part));
+  const length = Math.max(left.length, right.length);
+  for (let i = 0; i < length; i += 1) {
+    const diff = (left[i] || 0) - (right[i] || 0);
+    if (diff !== 0) return diff;
+  }
+  return 0;
+}
+
+function findLatestPreviewArtifact(miniMaintenanceDir) {
+  const artifactsDir = path.join(miniMaintenanceDir, 'artifacts');
+  let files;
+  try {
+    files = fs.readdirSync(artifactsDir);
+  } catch {
+    return null;
+  }
+
+  return files
+    .map((file) => {
+      const match = /^oca-preview-qrcode-(\d+\.\d+\.\d+)\.jpg$/.exec(file);
+      return match ? { file, version: match[1] } : null;
+    })
+    .filter(Boolean)
+    .sort((a, b) => comparePreviewVersions(b.version, a.version))[0] || null;
+}
+
 function missingTerms(content, terms) {
   if (content === null) return terms;
   return terms.filter((term) => !content.includes(term));
@@ -122,14 +151,18 @@ function buildMiniOpsChecks(miniMaintenanceDir) {
     ];
   }
 
-  const preview = path.join(miniMaintenanceDir, 'artifacts', 'oca-preview-qrcode-1.1.50.jpg');
+  const latestPreview = findLatestPreviewArtifact(miniMaintenanceDir);
+  const previewFile = latestPreview?.file || 'oca-preview-qrcode-<latest>.jpg';
+  const previewVersion = latestPreview?.version || '<latest>';
+  const preview = path.join(miniMaintenanceDir, 'artifacts', previewFile);
   const latest = path.join(miniMaintenanceDir, 'artifacts', 'oca-preview-qrcode-latest.jpg');
   const formalQr = path.join(miniMaintenanceDir, 'artifacts', 'miniprogram-formal-qrcode-current.png');
   const artifactMissing = [
-    !fileExists(preview) ? 'missing preview QR artifact: oca-preview-qrcode-1.1.50.jpg' : null,
+    !latestPreview ? 'missing versioned preview QR artifact: oca-preview-qrcode-<version>.jpg' : null,
+    latestPreview && !fileExists(preview) ? `missing preview QR artifact: ${previewFile}` : null,
     !fileExists(latest) ? 'missing latest preview QR alias: oca-preview-qrcode-latest.jpg' : null,
     fileExists(preview) && fileExists(latest) && !sameFileContent(preview, latest)
-      ? 'latest preview QR alias does not match 1.1.50 artifact'
+      ? `latest preview QR alias does not match ${previewVersion} artifact`
       : null,
     !fileExists(formalQr) ? 'missing current formal QR artifact marker' : null,
   ].filter(Boolean);
@@ -139,15 +172,15 @@ function buildMiniOpsChecks(miniMaintenanceDir) {
       base: miniMaintenanceDir,
       file: 'OPERATIONS.md',
       name: 'Operations log records latest accepted preview and old formal QR separation',
-      terms: ['1.1.50', '当前正式长期二维码仍是旧正式包', '住院号搜索', '修改患者', '上次得分', '上次结论', '预计复诊日期'],
+      terms: [previewVersion, '当前正式长期二维码仍是旧正式包', '住院号搜索', '修改患者', '上次得分', '上次结论', '预计复诊日期'],
       evidence: ['The operations log separates the latest accepted preview evidence from the still-old formal QR.'],
     }),
     {
       name: 'Latest mini-program preview QR artifact is present and aliased',
       status: artifactMissing.length ? 'fail' : 'pass',
-      file: 'artifacts/oca-preview-qrcode-1.1.50.jpg',
+      file: `artifacts/${previewFile}`,
       evidence: [
-        'artifacts/oca-preview-qrcode-1.1.50.jpg',
+        `artifacts/${previewFile}`,
         'artifacts/oca-preview-qrcode-latest.jpg',
         'artifacts/miniprogram-formal-qrcode-current.png',
       ],

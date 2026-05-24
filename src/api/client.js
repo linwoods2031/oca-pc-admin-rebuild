@@ -1,15 +1,17 @@
+// 该裸客户端只能被 src/api/oca.js 使用。所有业务写接口必须通过 oca.js wrapper，
+// 以执行只读保护和写入 allow-list guard。
 import axios from 'axios';
 import { ElMessage } from 'element-plus';
 import { clearSession, getToken } from '../session.js';
 import { router } from '../router.js';
 import { isReadOnlyMode, writeDisabledMessage } from '../config/runtime.js';
 
-export const api = axios.create({
+export const internalApi = axios.create({
   baseURL: '/prod-api',
   timeout: 15000,
 });
 
-api.interceptors.request.use((config) => {
+internalApi.interceptors.request.use((config) => {
   const method = (config.method || 'get').toLowerCase();
   const url = String(config.url || '');
   const isWrite = ['post', 'put', 'patch', 'delete'].includes(method);
@@ -22,7 +24,7 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-api.interceptors.response.use(
+internalApi.interceptors.response.use(
   (response) => {
     if (response.config.responseType === 'blob') return response;
     const body = response.data;

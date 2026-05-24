@@ -89,7 +89,7 @@ async function changeVisitor(row, value) {
     if (error !== 'cancel' && error !== 'close') {
       ElMessage.error(error.message || '更新失败');
     }
-    load();
+    await load();
   }
 }
 

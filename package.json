@@ -6,7 +6,12 @@
   "scripts": {
     "dev": "vite --host 127.0.0.1",
     "build": "vite build",
-    "preview": "vite preview --host 127.0.0.1"
+    "preview": "vite preview --host 127.0.0.1",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "check:api-boundary": "node scripts/check-api-boundary.mjs",
+    "preflight": "node scripts/preflight.mjs",
+    "verify": "npm run check:api-boundary && npm run test && npm run build && npm run preflight"
   },
   "dependencies": {
     "@vitejs/plugin-vue": "^5.2.4",
@@ -17,5 +22,7 @@
     "vue": "^3.5.14",
     "vue-router": "^4.5.1"
   },
-  "devDependencies": {}
+  "devDependencies": {
+    "vitest": "^3.1.4"
+  }
 }

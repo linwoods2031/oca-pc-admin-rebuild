@@ -252,6 +252,8 @@ import {
   isReadOnlyMode,
   writeDisabledMessage,
 } from '../config/runtime.js';
+import { buildBasePayload, emptyMedicine, normalizeMsList } from '../utils/basePayload.js';
+import { buildQuestionPayload, isAssessmentSubmitted, isReportSubmitted, scoreText } from '../utils/reportPayload.js';
 
 const props = defineProps({ id: { type: String, required: true } });
 const user = getUser();
@@ -432,16 +434,6 @@ const baseDisabledReason = computed(() => {
   return '';
 });
 
-function isAssessmentSubmitted(state) {
-  // 后端评估 state === 1 表示整次评估已提交。
-  return Number(state) === 1;
-}
-
-function isReportSubmitted(report = {}) {
-  // 量表报告 state/reportState/status/finishState === 2 暂按已提交处理，实际主字段仍需接口回归确认。
-  return [report.state, report.reportState, report.status, report.finishState].some((value) => Number(value) === 2);
-}
-
 function findAssessmentById(list = [], outpatientId) {
   if (!outpatientId) return null;
   return (list || []).find((item) => Number(item.id) === Number(outpatientId)) || null;
@@ -457,38 +449,9 @@ function normalizeQuestions(list) {
       displayContent: typeof item.content === 'string' ? item.content.replace(/^\s*\d+\s*[.、]\s*/, '') : '',
       showGroup: !!item.groupName && (!prev || prev.groupName !== item.groupName),
       checkItem,
-      selectedOptionId: checkItem.optionId || null,
+      selectedOptionId: checkItem.optionId !== null && checkItem.optionId !== undefined && checkItem.optionId !== '' ? checkItem.optionId : null,
       inputValue: checkItem.input || '',
     };
-  });
-}
-
-function buildQuestionPayload(questions) {
-  return questions.map((item) => {
-    const row = { ...item };
-    delete row.order;
-    delete row.displayContent;
-    delete row.showGroup;
-    delete row.selectedOptionId;
-    delete row.inputValue;
-
-    row.checkItem = null;
-    if (Number(item.type) === 0 && item.selectedOptionId) {
-      const option = (item.options || []).find((entry) => Number(entry.id) === Number(item.selectedOptionId));
-      row.checkItem = {
-        questionId: item.id,
-        optionId: Number(item.selectedOptionId),
-        score: option ? Number(option.optionScore ?? option.score ?? 0) : 0,
-        question: item.content,
-      };
-    } else if (item.inputValue) {
-      row.checkItem = {
-        questionId: item.id,
-        input: item.inputValue,
-        question: item.content,
-      };
-    }
-    return row;
   });
 }
 
@@ -561,10 +524,6 @@ async function openCompositePreview(row) {
   }
 }
 
-function emptyMedicine() {
-  return { medication: '', dose: '', frequency: '', way: '' };
-}
-
 function defaultBaseForm() {
   return {
     id: null,
@@ -606,20 +565,6 @@ function defaultBaseForm() {
   };
 }
 
-function normalizeMsList(list) {
-  const rows = Array.isArray(list) ? list : [];
-  const filtered = rows
-    .map((item) => ({ ...emptyMedicine(), ...(item || {}) }))
-    .filter((item) => item.medication || item.dose || item.frequency || item.way);
-  return filtered.length ? filtered : [emptyMedicine()];
-}
-
-function toNumberOrNull(value) {
-  if (value === '' || value === null || value === undefined) return null;
-  const number = Number(value);
-  return Number.isNaN(number) ? null : number;
-}
-
 function normalizeDictList(list) {
   if (!Array.isArray(list)) return [];
   return list.map((item) => {
@@ -629,12 +574,6 @@ function normalizeDictList(list) {
       dictValue: Number.isNaN(numberValue) ? item.dictValue : numberValue,
     };
   });
-}
-
-function cleanPayload(payload, { keepEmpty = false } = {}) {
-  return Object.fromEntries(
-    Object.entries(payload).filter(([, value]) => (keepEmpty ? value !== undefined : value !== '' && value !== null && value !== undefined)),
-  );
 }
 
 async function loadBaseDicts() {
@@ -671,7 +610,8 @@ async function openBase(row) {
       loadBaseDicts(),
     ]);
     const selectedOutpatientId = row?.id || base?.outpatientId || null;
-    if (base?.id && row?.id && !base?.outpatientId) {
+    const medicineRows = normalizeMsList((Array.isArray(medications) && medications.length ? medications : base?.msList) || []);
+    if (base?.id && row?.id && (base.outpatientId === null || base.outpatientId === undefined || base.outpatientId === '')) {
       baseAssociationWarning.value = '后端仅按患者返回一般情况表，无法确认该记录是否属于当前评估，已禁止保存以避免误更新。';
     } else if (base?.id && row?.id && Number(base.outpatientId) !== Number(row.id)) {
       baseAssociationWarning.value = '当前一般情况表记录归属的评估与所选评估不一致，已禁止保存以避免误更新。';
@@ -680,7 +620,7 @@ async function openBase(row) {
       patientId: Number(props.id),
       outpatientId: selectedOutpatientId,
       tableId: row?.tableId || base?.tableId || 4,
-      msList: normalizeMsList((Array.isArray(medications) && medications.length ? medications : base?.msList) || []),
+      msList: medicineRows.length ? medicineRows : [emptyMedicine()],
     });
   } catch (error) {
     ElMessage.error(error.message || '加载一般情况失败');
@@ -716,29 +656,52 @@ function printPreview() {
 
 async function verifyBaseWritable() {
   const outpatientId = baseOutpatientId.value || baseForm.outpatientId;
-  const [freshPatient, freshBase] = await Promise.all([
-    getPatient(props.id),
-    getBase(props.id).catch(() => null),
-  ]);
-  if (freshPatient) patient.value = freshPatient;
-  const freshAssessment = findAssessmentById(freshPatient?.checkList, outpatientId);
-  if (freshAssessment) baseAssessmentState.value = freshAssessment.state;
+  let freshPatient = null;
+  let freshBase = null;
+  try {
+    [freshPatient, freshBase] = await Promise.all([getPatient(props.id), getBase(props.id)]);
+  } catch {
+    ElMessage.warning('保存前复查失败，已禁止保存一般情况表。');
+    return false;
+  }
+  if (!freshPatient || !Array.isArray(freshPatient.checkList)) {
+    ElMessage.warning('保存前无法确认当前患者评估列表，已禁止保存一般情况表。');
+    return false;
+  }
+  patient.value = freshPatient;
+  const freshAssessment = findAssessmentById(freshPatient.checkList, outpatientId);
+  if (!freshAssessment) {
+    ElMessage.warning('保存前无法在患者评估列表中确认当前评估，已禁止保存一般情况表。');
+    return false;
+  }
+  baseAssessmentState.value = freshAssessment.state;
   if (isAssessmentSubmitted(baseAssessmentState.value)) {
     ElMessage.warning('评估已提交，禁止保存一般情况表。');
     return false;
   }
-  if (baseForm.id && freshBase?.id && Number(freshBase.id) !== Number(baseForm.id)) {
+  const hasFreshBaseId = freshBase?.id !== null && freshBase?.id !== undefined && freshBase?.id !== '';
+  const isCreateBase = !baseForm.id;
+  if (hasFreshBaseId && baseForm.id && Number(freshBase.id) !== Number(baseForm.id)) {
     ElMessage.warning('重新读取的一般情况表记录与当前编辑记录不一致，已禁止保存。');
     return false;
   }
-  if (freshBase?.id && outpatientId && !freshBase?.outpatientId) {
+  if (hasFreshBaseId && isCreateBase) {
+    ElMessage.warning('保存前复查发现一般情况表已存在，请重新打开后编辑。');
+    return false;
+  }
+  // 一般情况表接口按 patientId 返回，无法确认 outpatientId 归属时必须禁止保存。
+  if (hasFreshBaseId && (freshBase.outpatientId === null || freshBase.outpatientId === undefined || freshBase.outpatientId === '')) {
     baseAssociationWarning.value = '后端仅按患者返回一般情况表，无法确认该记录是否属于当前评估，已禁止保存以避免误更新。';
     ElMessage.warning(baseAssociationWarning.value);
     return false;
   }
-  if (freshBase?.id && outpatientId && Number(freshBase.outpatientId) !== Number(outpatientId)) {
+  if (hasFreshBaseId && Number(freshBase.outpatientId) !== Number(outpatientId)) {
     baseAssociationWarning.value = '当前一般情况表记录归属的评估与所选评估不一致，已禁止保存以避免误更新。';
     ElMessage.warning(baseAssociationWarning.value);
+    return false;
+  }
+  if (!hasFreshBaseId && !isCreateBase) {
+    ElMessage.warning('保存前复查未找到当前一般情况表记录，已禁止保存。');
     return false;
   }
   return true;
@@ -759,30 +722,12 @@ async function saveBaseForm() {
     assertOutpatientWriteAllowed(baseOutpatientId.value || baseForm.outpatientId, '当前评估不在写入灰度 allow-list，禁止保存一般情况表');
     const freshWritable = await verifyBaseWritable();
     if (!freshWritable) return;
-    const msList = normalizeMsList(baseForm.msList).filter(
-      (item) => item.medication || item.dose || item.frequency || item.way,
-    );
-    const payload = cleanPayload({
-      ...baseForm,
+    const payload = buildBasePayload(baseForm, {
       patientId: Number(props.id),
       outpatientId: baseOutpatientId.value || baseForm.outpatientId,
       tableId: baseForm.tableId || 4,
-      height: toNumberOrNull(baseForm.height),
-      weight: toNumberOrNull(baseForm.weight),
-      bmi: toNumberOrNull(baseForm.bmi),
-      sonNumber: toNumberOrNull(baseForm.sonNumber),
-      daughtersNumber: toNumberOrNull(baseForm.daughtersNumber),
-      alseToothNumber: toNumberOrNull(baseForm.alseToothNumber),
-      dentureStatus: toNumberOrNull(baseForm.dentureStatus),
-      livingFloor: toNumberOrNull(baseForm.livingFloor),
-      hasElevator: toNumberOrNull(baseForm.hasElevator),
-      fallHistory: toNumberOrNull(baseForm.fallHistory),
-      isBowelProblem: toNumberOrNull(baseForm.isBowelProblem),
-    }, { keepEmpty: Boolean(baseForm.id) });
-    if (msList.length) {
-      payload.msList = msList;
-    }
-    // 删除全部用药的后端语义未确认前，不提交空 msList，避免被解释为清空后端用药。
+      keepEmpty: Boolean(baseForm.id),
+    });
     await saveBase(payload);
     ElMessage.success('一般情况已保存');
     baseOpen.value = false;
@@ -808,13 +753,6 @@ function answerText(row) {
   const optionId = row.checkItem?.optionId;
   const option = (row.options || []).find((item) => Number(item.id) === Number(optionId));
   return option?.optionText || '/';
-}
-
-function scoreText(row) {
-  if (row.score !== undefined && row.score !== null) return row.score;
-  const optionId = row.selectedOptionId || row.checkItem?.optionId;
-  const option = (row.options || []).find((item) => Number(item.id) === Number(optionId));
-  return option?.optionScore ?? option?.score ?? '/';
 }
 
 onMounted(load);

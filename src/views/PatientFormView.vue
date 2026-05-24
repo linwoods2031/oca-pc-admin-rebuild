@@ -5,22 +5,22 @@
         <el-button link @click="cancel">返回</el-button>
         <h2>{{ isEdit ? '编辑患者' : '新增患者' }}</h2>
       </div>
-      <el-tooltip :disabled="!isReadOnlyMode" :content="writeDisabledMessage" placement="top">
+      <el-tooltip :disabled="!saveDisabledReason" :content="saveDisabledReason" placement="top">
         <span>
-          <el-button type="primary" :disabled="isReadOnlyMode" :loading="saving" @click="submit">保存</el-button>
+          <el-button type="primary" :disabled="saveDisabled" :loading="saving" @click="submit">保存</el-button>
         </span>
       </el-tooltip>
     </div>
 
     <el-alert
-      v-if="isReadOnlyMode"
+      v-if="saveDisabledReason"
       type="warning"
       :closable="false"
-      :title="writeDisabledMessage"
+      :title="saveDisabledReason"
       style="margin-top: 14px"
     />
 
-    <el-form ref="formRef" :model="form" :rules="rules" label-position="top" class="patient-form" :disabled="isReadOnlyMode">
+    <el-form ref="formRef" :model="form" :rules="rules" label-position="top" class="patient-form" :disabled="saveDisabled">
       <el-form-item label="姓名" prop="name">
         <el-input v-model.trim="form.name" maxlength="30" placeholder="请输入姓名" />
       </el-form-item>
@@ -79,7 +79,13 @@ import { addPatient, getInfo, getPatient, updatePatient } from '../api/oca.js';
 import {
   assertCreatePatientAllowed,
   assertPatientWriteAllowed,
+  allowCreatePatient,
+  allowedPatientIds,
+  hasId,
+  isAllowListEnabled,
   isReadOnlyMode,
+  isWriteEnabled,
+  writeGuardMessage,
   writeDisabledMessage,
 } from '../config/runtime.js';
 import { getUser } from '../session.js';
@@ -93,6 +99,14 @@ const formRef = ref(null);
 const original = ref({});
 const initialForm = ref({});
 const ownerDefaults = ref({});
+const saveDisabledReason = computed(() => {
+  if (isReadOnlyMode) return writeDisabledMessage;
+  if (isWriteEnabled && !isAllowListEnabled) return writeGuardMessage;
+  if (isEdit.value && !hasId(allowedPatientIds, props.id)) return '当前患者不在写入灰度 allow-list，禁止编辑患者';
+  if (!isEdit.value && !allowCreatePatient) return '写入灰度默认禁止新增患者，必须显式设置 VITE_ALLOW_CREATE_PATIENT=true';
+  return '';
+});
+const saveDisabled = computed(() => Boolean(saveDisabledReason.value));
 
 const form = reactive({
   name: '',
@@ -235,8 +249,8 @@ function cancel() {
 }
 
 async function submit() {
-  if (isReadOnlyMode) {
-    ElMessage.warning(writeDisabledMessage);
+  if (saveDisabled.value) {
+    ElMessage.warning(saveDisabledReason.value);
     return;
   }
   try {

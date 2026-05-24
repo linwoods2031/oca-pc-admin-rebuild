@@ -4,6 +4,14 @@
 
 不要把真实账号、密码、测试患者姓名、身份证、手机号或生产验证细节提交到仓库。文档中的登录信息统一使用 `<username>`、`<password>`、`<test-patient>` 等占位符。
 
+## 发布级别
+
+当前源码支持三个发布级别：
+
+1. 只读灰度：默认级别，本地 dev 和生产构建默认只读，除登录外拦截业务写入。
+2. 受限写入灰度：必须显式设置 `VITE_ENABLE_PROD_WRITES=true`，并配置患者、评估、报告 allow-list，仅用于授权测试患者。
+3. 正式上线评审候选：源码、测试、预检、构建和文档达到提交评审条件，但仍必须完成后端接口契约、小程序 payload 对齐、生产权限、回滚、审计和备份确认。
+
 ## 已覆盖功能
 
 - 登录和当前用户信息
@@ -39,11 +47,30 @@ VITE_APP_BASE=/pc-rebuild/ npm run build
 
 构建产物输出到 `dist/`。不要直接覆盖线上生产目录，先按 `docs/deploy-plan.md` 走 `/pc-rebuild/` 灰度路径。
 
+## 正式上线前检查
+
+提交正式上线评审前必须在本地运行：
+
+```bash
+npm run verify
+```
+
+正式上线不是只靠前端决定，还需要完成：
+
+- 后端接口契约确认。
+- 小程序 payload 对齐。
+- 生产账号权限确认。
+- 回滚演练。
+- 操作审计确认。
+- 数据备份确认。
+
 ## 安全边界
 
 - 不修改生产后端。
 - 不修改微信小程序。
 - 不直接覆盖线上 `/srv/oca-source/opt/html`。
+- Codex 可以生成代码、测试、文档和构建产物校验，但不得执行生产部署。
+- Codex 不得调用真实生产写接口，最终上线必须由发布负责人按变更单执行。
 - 默认启用只读保护，包括本地 dev 和生产构建；除登录外，业务写请求默认会被拦截。
 - 如需受限写入灰度，必须经发布负责人确认后显式设置 `VITE_ENABLE_PROD_WRITES=true`，且只应使用明确的 `<test-patient>` 和未提交测试评估。
 - 受限写入灰度必须配置 allow-list：`VITE_WRITE_ALLOW_PATIENT_IDS`、`VITE_WRITE_ALLOW_OUTPATIENT_IDS`、`VITE_WRITE_ALLOW_REPORT_IDS`。

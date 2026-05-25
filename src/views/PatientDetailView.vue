@@ -246,6 +246,14 @@
           <el-table-column prop="rightResult" label="评估结果" min-width="260" class-name="pre-line-cell" />
         </el-table>
 
+        <h3 class="report-section-title">体能评测</h3>
+        <el-table :data="previewPhysicalRows" border stripe>
+          <el-table-column prop="leftName" label="项目" width="180" />
+          <el-table-column prop="leftResult" label="结果" min-width="260" />
+          <el-table-column prop="rightName" label="项目" width="180" />
+          <el-table-column prop="rightResult" label="结果" min-width="260" />
+        </el-table>
+
         <h3 class="report-section-title">与上次评估对比</h3>
         <el-table :data="previewCompareRows" border stripe>
           <el-table-column prop="tableName" label="量表名称" min-width="230" />
@@ -298,6 +306,7 @@ import {
 } from '../config/runtime.js';
 import { emptyMedicine, normalizeMsList } from '../utils/basePayload.js';
 import { verifyBaseAssociation } from '../utils/baseWritable.js';
+import { buildNrsPainDetails, buildSppbPhysicalDetails, nrsDetailText, nrsScoreText } from '../utils/reportDetails.js';
 import { reportDisplayText } from '../utils/reportDisplay.js';
 import { buildQuestionPayload, isAssessmentSubmitted, isReportSubmitted, scoreText } from '../utils/reportPayload.js';
 import { decideReportWritable } from '../utils/reportWritable.js';
@@ -391,6 +400,7 @@ const previewLoading = ref(false);
 const previewVisit = ref({});
 const previewTables = ref([]);
 const previewBase = ref({});
+const previewDetails = ref({ sppb: {}, nrs: {} });
 const previewBedNo = ref('');
 const creatingTestAssessment = ref(false);
 const dicts = reactive({
@@ -426,7 +436,7 @@ const REPORT_SUMMARY_LAYOUT = [
   [{ label: 'FRIED\n(衰弱)', tableId: 117 }, { label: 'SARC-F\n(简易五项)', tableId: 108 }],
   [{ label: 'Frail\n(衰弱)', tableId: 110 }, { label: '中医体质\n辨识', tableId: 116 }],
   [{ label: 'FRA\n(跌倒)', tableId: 106 }, { label: 'SPPB', tableId: 114 }],
-  [{ label: 'NRS\n(疼痛)', tableId: 113 }, null],
+  [{ label: 'NRS\n(疼痛)', tableId: 113 }, { label: '疼痛信息', detail: 'nrs' }],
 ];
 
 const checks = computed(() => patient.value.checkList || []);
@@ -443,6 +453,18 @@ const previewReportRows = computed(() =>
   })),
 );
 const previewCompareRows = computed(() => previewTables.value.filter((row) => row.hasCompare));
+const previewPhysicalRows = computed(() => {
+  const sppb = previewDetails.value.sppb || {};
+  return [
+    { leftName: '4米步速试验', leftResult: sppb.fourMeter || '手填', rightName: '3米来回试验', rightResult: '手填' },
+    { leftName: '5次起坐', leftResult: sppb.fiveRise || '手填', rightName: '并足站立', rightResult: sppb.feetTogether || '手填' },
+    { leftName: '串联站立', leftResult: sppb.tandem || '手填', rightName: '半串联站立', rightResult: sppb.semiTandem || '手填' },
+    { leftName: '握力（左）', leftResult: '手填', rightName: '握力（右）', rightResult: '手填' },
+    { leftName: '小腿围（左）', leftResult: '手填', rightName: '小腿围（右）', rightResult: '手填' },
+    { leftName: '腰围', leftResult: '手填', rightName: '臀围', rightResult: '手填' },
+    { leftName: '体力状况', leftResult: '手填', rightName: '', rightResult: '' },
+  ];
+});
 
 function mapTable(item) {
   const table = item.checkTable || {};
@@ -465,10 +487,12 @@ function hasPreviousResult(item = {}) {
 
 function previewSlotResult(slot) {
   if (!slot) return '';
+  if (slot.detail === 'nrs') return nrsDetailText(previewDetails.value.nrs);
   if (slot.handwrite) return '手填';
   const row = previewTableById.value.get(Number(slot.tableId));
   if (!row || row.previousOnly) return '/';
-  const score = row.scoreText && row.scoreText !== '/' ? `得分：${row.scoreText}` : '';
+  const scoreTextValue = Number(slot.tableId) === 113 ? nrsScoreText(row, previewDetails.value.nrs) : row.scoreText;
+  const score = scoreTextValue && scoreTextValue !== '/' ? `得分：${scoreTextValue}` : '';
   const remark = row.remarkText && row.remarkText !== '/' ? `结论：${row.remarkText}` : '';
   return [score, remark].filter(Boolean).join('\n') || '/';
 }
@@ -506,6 +530,7 @@ function resetTransientState() {
   previewVisit.value = {};
   previewTables.value = [];
   previewBase.value = {};
+  previewDetails.value = { sppb: {}, nrs: {} };
   previewBedNo.value = '';
   Object.assign(baseForm, defaultBaseForm());
 }
@@ -673,6 +698,7 @@ async function verifyReportWritable() {
 async function openCompositePreview(row) {
   previewVisit.value = row || {};
   previewBedNo.value = '';
+  previewDetails.value = { sppb: {}, nrs: {} };
   previewOpen.value = true;
   previewLoading.value = true;
   try {
@@ -682,14 +708,37 @@ async function openCompositePreview(row) {
       loadBaseDicts(),
     ]);
     previewBase.value = base || {};
-    previewTables.value = (result.list || [])
+    const mappedTables = (result.list || [])
       .filter((item) => Number(item.checkTableId) !== 115)
       .map(mapTable);
+    previewTables.value = mappedTables;
+    previewDetails.value = await loadPreviewReportDetails(mappedTables);
   } catch (error) {
     ElMessage.error(error.message || '加载总报告预览失败');
   } finally {
     previewLoading.value = false;
   }
+}
+
+async function loadPreviewReportDetails(mappedTables) {
+  const detail = { sppb: {}, nrs: {} };
+  await Promise.all(
+    [
+      { tableId: 114, key: 'sppb' },
+      { tableId: 113, key: 'nrs' },
+    ].map(async ({ tableId, key }) => {
+      const row = mappedTables.find((item) => Number(item.checkTableId) === tableId && !item.previousOnly);
+      const reportId = row?.id || row?.reportId;
+      if (!reportId) return;
+      try {
+        const items = await getQuestionReport(tableId, reportId);
+        detail[key] = tableId === 114 ? buildSppbPhysicalDetails(items) : buildNrsPainDetails(items);
+      } catch {
+        detail[key] = {};
+      }
+    }),
+  );
+  return detail;
 }
 
 function defaultBaseForm() {

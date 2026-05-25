@@ -62,13 +62,15 @@
     <el-dialog v-model="assessmentOpen" title="量表结果" width="1040px">
       <el-table v-loading="assessmentLoading" :data="tables" stripe max-height="520">
         <el-table-column prop="tableName" label="量表名称" min-width="230" />
-        <el-table-column prop="scoreText" label="得分" width="90" />
-        <el-table-column prop="remarkText" label="结论" min-width="180" />
-        <el-table-column prop="exScoreText" label="上次得分" width="100" />
-        <el-table-column prop="exRemarkText" label="上次结论" min-width="160" />
+        <el-table-column prop="scoreText" label="得分" width="140" class-name="pre-line-cell" />
+        <el-table-column prop="remarkText" label="结论" min-width="180" class-name="pre-line-cell" />
+        <el-table-column prop="exScoreText" label="上次得分" width="140" class-name="pre-line-cell" />
+        <el-table-column prop="exRemarkText" label="上次结论" min-width="160" class-name="pre-line-cell" />
         <el-table-column label="操作" width="120">
           <template #default="{ row }">
-            <el-button link type="primary" @click="openReport(row)">明细</el-button>
+            <el-button link type="primary" :disabled="row.previousOnly" @click="openReport(row)">
+              {{ row.previousOnly ? '本次未选' : '明细' }}
+            </el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -217,13 +219,40 @@
           <el-descriptions-item label="家庭住址" :span="2">{{ valueText(patient.homeAddress) }}</el-descriptions-item>
         </el-descriptions>
 
-        <h3 class="report-section-title">量表结果</h3>
-        <el-table :data="previewTables" border stripe>
+        <h3 class="report-section-title">患者基本情况</h3>
+        <el-descriptions :column="3" border>
+          <el-descriptions-item label="文化程度">{{ baseValueText(previewBase.degree, dicts.degree) }}</el-descriptions-item>
+          <el-descriptions-item label="婚姻状况">{{ baseValueText(previewBase.maritalStatus, dicts.maritalStatus) }}</el-descriptions-item>
+          <el-descriptions-item label="是否独居">{{ baseValueText(previewBase.isAlone, dicts.isAlone) }}</el-descriptions-item>
+          <el-descriptions-item label="照料者">{{ baseValueText(previewBase.carerType, dicts.carerType) }}</el-descriptions-item>
+          <el-descriptions-item label="残余牙齿">{{ valueText(previewBase.alseToothNumber) }}</el-descriptions-item>
+          <el-descriptions-item label="义齿">{{ baseValueText(previewBase.dentureStatus, dicts.dentureStatus) }}</el-descriptions-item>
+          <el-descriptions-item label="居住楼层">{{ valueText(previewBase.livingFloor) }}</el-descriptions-item>
+          <el-descriptions-item label="电梯房">{{ baseValueText(previewBase.hasElevator, dicts.hasElevator) }}</el-descriptions-item>
+          <el-descriptions-item label="跌倒史">{{ baseValueText(previewBase.fallHistory, dicts.fallHistory) }}</el-descriptions-item>
+          <el-descriptions-item label="影响进食">{{ baseValueText(previewBase.isAffectEating, dicts.isAffectEating) }}</el-descriptions-item>
+          <el-descriptions-item label="视力情况">{{ baseValueText(previewBase.visualImpairmentStatus, dicts.visualImpairmentStatus) }}</el-descriptions-item>
+          <el-descriptions-item label="听力情况">{{ baseValueText(previewBase.hearingDisorder, dicts.hearingDisorder) }}</el-descriptions-item>
+          <el-descriptions-item label="尿失禁史">{{ baseValueText(previewBase.isUracratia, dicts.isUracratia) }}</el-descriptions-item>
+          <el-descriptions-item label="便失禁史">{{ baseValueText(previewBase.isBowelProblem, dicts.isBowelProblem) }}</el-descriptions-item>
+          <el-descriptions-item label="多重用药">{{ baseValueText(previewBase.isMultidrug, dicts.isMultidrug) }}</el-descriptions-item>
+        </el-descriptions>
+
+        <h3 class="report-section-title">评估量表</h3>
+        <el-table :data="previewReportRows" border stripe>
+          <el-table-column prop="leftName" label="量表名称" width="180" />
+          <el-table-column prop="leftResult" label="评估结果" min-width="260" class-name="pre-line-cell" />
+          <el-table-column prop="rightName" label="量表名称" width="180" />
+          <el-table-column prop="rightResult" label="评估结果" min-width="260" class-name="pre-line-cell" />
+        </el-table>
+
+        <h3 class="report-section-title">与上次评估对比</h3>
+        <el-table :data="previewCompareRows" border stripe>
           <el-table-column prop="tableName" label="量表名称" min-width="230" />
-          <el-table-column prop="scoreText" label="得分" width="90" />
-          <el-table-column prop="remarkText" label="结论" min-width="220" />
-          <el-table-column prop="exScoreText" label="上次得分" width="100" />
-          <el-table-column prop="exRemarkText" label="上次结论" min-width="180" />
+          <el-table-column prop="scoreText" label="本次得分" width="140" class-name="pre-line-cell" />
+          <el-table-column prop="remarkText" label="本次结论" min-width="220" class-name="pre-line-cell" />
+          <el-table-column prop="exScoreText" label="上次得分" width="140" class-name="pre-line-cell" />
+          <el-table-column prop="exRemarkText" label="上次结论" min-width="180" class-name="pre-line-cell" />
         </el-table>
       </section>
       <template #footer>
@@ -361,6 +390,7 @@ const previewOpen = ref(false);
 const previewLoading = ref(false);
 const previewVisit = ref({});
 const previewTables = ref([]);
+const previewBase = ref({});
 const previewBedNo = ref('');
 const creatingTestAssessment = ref(false);
 const dicts = reactive({
@@ -385,19 +415,67 @@ const dicts = reactive({
 });
 const baseForm = reactive(defaultBaseForm());
 
+const REPORT_SUMMARY_LAYOUT = [
+  [{ label: 'Tinetti\n平衡', tableId: 13 }, { label: 'ADL\n(功能)', tableId: 101 }],
+  [{ label: 'Tinetti\n步态', tableId: 14 }, { label: 'IADL\n(生活)', tableId: 102 }],
+  [{ label: 'MMSE\n(认知)', tableId: 105 }, { label: 'SAS\n(焦虑)', tableId: 103 }],
+  [{ label: 'Mini Cog\n(认知)', handwrite: true }, { label: 'SDS\n(抑郁)', tableId: 104 }],
+  [{ label: 'NRS2002\n(营养)', handwrite: true }, { label: 'CAM\n(谵妄)', handwrite: true }],
+  [{ label: 'MNA-SF\n(营养)', tableId: 107 }, { label: 'AIS\n(睡眠)', tableId: 109 }],
+  [{ label: 'CFS-09\n(衰弱)', tableId: 112 }, { label: 'EAT-10\n(吞咽)', tableId: 111 }],
+  [{ label: 'FRIED\n(衰弱)', tableId: 117 }, { label: 'SARC-F\n(简易五项)', tableId: 108 }],
+  [{ label: 'Frail\n(衰弱)', tableId: 110 }, { label: '中医体质\n辨识', tableId: 116 }],
+  [{ label: 'FRA\n(跌倒)', tableId: 106 }, { label: 'SPPB', tableId: 114 }],
+  [{ label: 'NRS\n(疼痛)', tableId: 113 }, null],
+];
+
 const checks = computed(() => patient.value.checkList || []);
 const showTestAssessmentCreate = computed(
   () => allowSessionWriteIds && isWriteEnabled && hasPatientWriteId(props.id),
 );
+const previewTableById = computed(() => new Map(previewTables.value.map((row) => [Number(row.checkTableId), row])));
+const previewReportRows = computed(() =>
+  REPORT_SUMMARY_LAYOUT.map(([left, right]) => ({
+    leftName: left?.label || '',
+    leftResult: previewSlotResult(left),
+    rightName: right?.label || '',
+    rightResult: previewSlotResult(right),
+  })),
+);
+const previewCompareRows = computed(() => previewTables.value.filter((row) => row.hasCompare));
 
 function mapTable(item) {
   const table = item.checkTable || {};
   const displayText = reportDisplayText(item);
+  const hasCompare = hasPreviousResult(item);
+  const previousOnly = !item.id && hasCompare;
   return {
     ...item,
     tableName: table.name || '量表',
+    previousOnly,
+    hasCompare,
     ...displayText,
   };
+}
+
+function hasPreviousResult(item = {}) {
+  const remark = String(item.exRemark || '').trim();
+  return (item.exScore !== null && item.exScore !== undefined) || (remark && remark !== '-' && remark !== '/');
+}
+
+function previewSlotResult(slot) {
+  if (!slot) return '';
+  if (slot.handwrite) return '手填';
+  const row = previewTableById.value.get(Number(slot.tableId));
+  if (!row || row.previousOnly) return '/';
+  const score = row.scoreText && row.scoreText !== '/' ? `得分：${row.scoreText}` : '';
+  const remark = row.remarkText && row.remarkText !== '/' ? `结论：${row.remarkText}` : '';
+  return [score, remark].filter(Boolean).join('\n') || '/';
+}
+
+function baseValueText(value, options = []) {
+  const matched = (options || []).find((item) => String(item.dictValue) === String(value));
+  return matched ? matched.dictLabel : valueText(value);
 }
 
 async function load() {
@@ -427,6 +505,7 @@ function resetTransientState() {
   baseAssociationWarning.value = '';
   previewVisit.value = {};
   previewTables.value = [];
+  previewBase.value = {};
   previewBedNo.value = '';
   Object.assign(baseForm, defaultBaseForm());
 }
@@ -484,6 +563,10 @@ async function createTestAssessment() {
 }
 
 async function openReport(row) {
+  if (row.previousOnly) {
+    ElMessage.info('本次未选择该量表，仅展示上次评估结果。');
+    return;
+  }
   reportTitle.value = row.tableName;
   reportMeta.value = row;
   reportOpen.value = true;
@@ -593,7 +676,12 @@ async function openCompositePreview(row) {
   previewOpen.value = true;
   previewLoading.value = true;
   try {
-    const result = await getAssessmentTables(row.id);
+    const [result, base] = await Promise.all([
+      getAssessmentTables(row.id),
+      getBase(props.id).catch(() => ({})),
+      loadBaseDicts(),
+    ]);
+    previewBase.value = base || {};
     previewTables.value = (result.list || [])
       .filter((item) => Number(item.checkTableId) !== 115)
       .map(mapTable);
@@ -674,6 +762,7 @@ async function loadBaseDicts() {
   dicts.dentureStatus = HAVE_NONE_OPTIONS;
   dicts.hasElevator = YES_NO_OPTIONS;
   dicts.fallHistory = HAVE_NONE_OPTIONS;
+  dicts.isUracratia = HAVE_NONE_OPTIONS;
   dicts.isBowelProblem = HAVE_NONE_OPTIONS;
 }
 

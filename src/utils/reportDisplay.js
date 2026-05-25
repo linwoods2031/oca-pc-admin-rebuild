@@ -15,10 +15,19 @@ export function splitTransformedScoreRemark(remark) {
   const text = remark || '';
   const index = text.indexOf(TCM_TRANSFORMED_SCORE_MARKER);
   if (index < 0) return { conclusion: text, transformedScore: '' };
+  const transformedScore = text.slice(index + TCM_TRANSFORMED_SCORE_MARKER.length).trim();
   return {
     conclusion: text.slice(0, index).replace(/[；;，,\s]+$/, ''),
-    transformedScore: text.slice(index + TCM_TRANSFORMED_SCORE_MARKER.length).trim(),
+    transformedScore: formatTransformedScore(transformedScore),
   };
+}
+
+export function formatTransformedScore(text) {
+  return String(text || '')
+    .split(/[，,；;]/)
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .join('\n');
 }
 
 export function reportDisplayText(row = {}) {
@@ -26,6 +35,7 @@ export function reportDisplayText(row = {}) {
   const previousTcm = isTcmReport(row) ? splitTransformedScoreRemark(row.exRemark) : null;
 
   return {
+    isTcmReport: isTcmReport(row),
     scoreText: currentTcm?.transformedScore || valueText(row.score),
     remarkText: currentTcm?.conclusion || valueText(row.remark),
     exScoreText: previousTcm?.transformedScore || valueText(row.exScore),

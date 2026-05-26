@@ -5,16 +5,22 @@
       <el-input v-model="query.patientNumber" placeholder="门诊号" clearable @keyup.enter="load" />
       <el-button type="primary" :loading="loading" @click="load">搜索</el-button>
       <el-button @click="reset">重置</el-button>
-      <span class="subtle">列表由后端规则控制：7 天内到期，超期 3 个月后隐藏。</span>
+      <span class="subtle">按预计复诊日期升序排列：7 天内到期，超期 3 个月后隐藏。</span>
     </div>
-    <el-table v-loading="loading" :data="rows" stripe height="calc(100vh - 238px)">
+    <el-table
+      v-loading="loading"
+      :data="rows"
+      stripe
+      height="calc(100vh - 238px)"
+      :default-sort="{ prop: 'nextVisitDate', order: 'ascending' }"
+    >
       <el-table-column prop="name" label="姓名" min-width="110" fixed />
       <el-table-column label="性别" width="80">
         <template #default="{ row }">{{ sexText(row.sex) }}</template>
       </el-table-column>
       <el-table-column prop="patientNumber" label="门诊号" min-width="130" />
       <el-table-column prop="admissionNumber" label="住院号" min-width="130" />
-      <el-table-column label="预计复诊" min-width="130">
+      <el-table-column label="预计复诊" prop="nextVisitDate" min-width="130" sortable>
         <template #default="{ row }">{{ dateText(row.nextVisitDate) }}</template>
       </el-table-column>
       <el-table-column label="是否回访" width="170">
@@ -58,6 +64,7 @@ import {
 } from '../config/runtime.js';
 import { dateText, sexText } from '../format.js';
 import { decideFollowupWritable } from '../utils/followupGuard.js';
+import { sortFollowUpRows } from '../utils/patientList.js';
 
 const loading = ref(false);
 const rows = ref([]);
@@ -68,7 +75,7 @@ async function load() {
   loading.value = true;
   try {
     const result = await getFollowUps(query);
-    rows.value = result.rows || [];
+    rows.value = sortFollowUpRows(result.rows || []);
     total.value = result.total || 0;
   } catch (error) {
     ElMessage.error(error.message || '加载回访列表失败');

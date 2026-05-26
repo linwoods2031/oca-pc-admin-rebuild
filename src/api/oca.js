@@ -46,7 +46,7 @@ export function updatePatient(payload) {
 
 export function getFollowUps(params) {
   return internalApi.get('/patient/archive/listPage', {
-    params: cleanParams({ pageNum: 1, pageSize: 20, ...params }),
+    params: cleanParams({ pageNum: 1, pageSize: 20, days: 1, ...params }),
   });
 }
 

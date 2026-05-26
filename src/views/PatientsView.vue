@@ -12,7 +12,14 @@
         </span>
       </el-tooltip>
     </div>
-    <el-table v-loading="loading" :data="rows" stripe height="calc(100vh - 238px)">
+    <el-table
+      v-loading="loading"
+      :data="rows"
+      stripe
+      height="calc(100vh - 238px)"
+      :default-sort="{ prop: 'createTime', order: 'descending' }"
+      @sort-change="onSortChange"
+    >
       <el-table-column prop="name" label="姓名" min-width="110" fixed />
       <el-table-column label="性别" width="80">
         <template #default="{ row }">{{ sexText(row.sex) }}</template>
@@ -23,8 +30,11 @@
       <el-table-column prop="sickroomNumber" label="病房号" min-width="110" />
       <el-table-column prop="sickbedNumber" label="病床号" min-width="110" />
       <el-table-column prop="phone" label="电话" min-width="140" />
-      <el-table-column label="预计复诊" min-width="130">
+      <el-table-column label="预计复诊" prop="nextVisitDate" min-width="130" sortable>
         <template #default="{ row }">{{ dateText(row.nextVisitDate) }}</template>
+      </el-table-column>
+      <el-table-column label="建档时间" prop="createTime" min-width="130" sortable>
+        <template #default="{ row }">{{ dateText(row.createTime) }}</template>
       </el-table-column>
       <el-table-column label="操作" width="150" fixed="right">
         <template #default="{ row }">
@@ -49,23 +59,30 @@ import { ElMessage } from 'element-plus';
 import { getPatients } from '../api/oca.js';
 import { isReadOnlyMode, writeDisabledMessage } from '../config/runtime.js';
 import { dateText, sexText } from '../format.js';
+import { sortPatientRows } from '../utils/patientList.js';
 
 const loading = ref(false);
 const rows = ref([]);
 const total = ref(0);
 const query = reactive({ pageNum: 1, pageSize: 20, name: '', patientNumber: '', admissionNumber: '' });
+const sortState = ref({ prop: 'createTime', order: 'descending' });
 
 async function load() {
   loading.value = true;
   try {
     const result = await getPatients(query);
-    rows.value = result.rows || [];
+    rows.value = sortPatientRows(result.rows || [], sortState.value);
     total.value = result.total || 0;
   } catch (error) {
     ElMessage.error(error.message || '加载患者失败');
   } finally {
     loading.value = false;
   }
+}
+
+function onSortChange({ prop, order }) {
+  sortState.value = { prop: prop || 'createTime', order: order || 'descending' };
+  rows.value = sortPatientRows(rows.value, sortState.value);
 }
 
 function reset() {

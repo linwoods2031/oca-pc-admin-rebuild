@@ -211,6 +211,10 @@ body {
   margin: 18px 0 10px;
 }
 
+.assessment-print-meta {
+  margin-bottom: 14px;
+}
+
 .pre-line-cell .cell {
   white-space: pre-line;
   line-height: 1.55;
@@ -261,6 +265,11 @@ body {
 
   .print-report .el-table {
     font-size: 12px;
+  }
+
+  .print-report .el-table__body-wrapper {
+    max-height: none !important;
+    overflow: visible !important;
   }
 
   .print-report .el-descriptions__label,

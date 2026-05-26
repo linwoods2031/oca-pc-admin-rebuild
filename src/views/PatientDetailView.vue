@@ -51,7 +51,7 @@
         <el-table-column label="操作" width="320">
           <template #default="{ row }">
             <el-button type="primary" link @click="openBase(row)">一般情况表</el-button>
-            <el-button type="primary" link @click="openAssessment(row)">查看量表结果</el-button>
+            <el-button type="primary" link @click="openAssessment(row)">查看评估量表结果</el-button>
             <el-button type="warning" link @click="openCompositePreview(row)">总报告预览</el-button>
             <el-button type="success" link @click="print(row)">总报告打印</el-button>
           </template>
@@ -60,20 +60,38 @@
     </div>
 
     <el-dialog v-model="assessmentOpen" title="量表结果" width="1040px">
-      <el-table v-loading="assessmentLoading" :data="tables" stripe max-height="520">
-        <el-table-column prop="tableName" label="量表名称" min-width="230" />
-        <el-table-column prop="scoreText" label="得分" width="140" class-name="pre-line-cell" />
-        <el-table-column prop="remarkText" label="结论" min-width="180" class-name="pre-line-cell" />
-        <el-table-column prop="exScoreText" label="上次得分" width="140" class-name="pre-line-cell" />
-        <el-table-column prop="exRemarkText" label="上次结论" min-width="160" class-name="pre-line-cell" />
-        <el-table-column label="操作" width="120">
-          <template #default="{ row }">
-            <el-button link type="primary" :disabled="row.previousOnly" @click="openReport(row)">
-              {{ row.previousOnly ? '本次未选' : '明细' }}
-            </el-button>
-          </template>
-        </el-table-column>
-      </el-table>
+      <section class="assessment-print-report print-report">
+        <div class="report-head">
+          <h2>评估量表结果报告单</h2>
+          <div class="subtle">评估日期：{{ dateText(assessmentVisit.visitDate || assessmentVisit.createTime) }}</div>
+        </div>
+        <el-descriptions :column="4" border class="assessment-print-meta">
+          <el-descriptions-item label="姓名">{{ valueText(patient.name) }}</el-descriptions-item>
+          <el-descriptions-item label="性别">{{ sexText(patient.sex) }}</el-descriptions-item>
+          <el-descriptions-item label="年龄">{{ valueText(patient.age) }}</el-descriptions-item>
+          <el-descriptions-item label="住院号">{{ valueText(patient.admissionNumber) }}</el-descriptions-item>
+        </el-descriptions>
+        <el-table v-loading="assessmentLoading" :data="tables" stripe max-height="520">
+          <el-table-column prop="tableName" label="量表名称" min-width="230" />
+          <el-table-column prop="scoreText" label="得分" width="140" class-name="pre-line-cell" />
+          <el-table-column prop="remarkText" label="结论" min-width="180" class-name="pre-line-cell" />
+          <el-table-column prop="exScoreText" label="上次得分" width="140" class-name="pre-line-cell" />
+          <el-table-column prop="exRemarkText" label="上次结论" min-width="160" class-name="pre-line-cell" />
+          <el-table-column label="操作" width="120" class-name="print-hide" label-class-name="print-hide">
+            <template #default="{ row }">
+              <el-button link type="primary" :disabled="row.previousOnly" @click="openReport(row)">
+                {{ row.previousOnly ? '本次未选' : '明细' }}
+              </el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+      </section>
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="assessmentOpen = false">关闭</el-button>
+          <el-button @click="printAssessmentResults">打印量表结果</el-button>
+        </span>
+      </template>
     </el-dialog>
 
     <el-dialog v-model="reportOpen" :title="reportTitle" width="980px">
@@ -212,10 +230,10 @@
           <el-descriptions-item label="门诊号">{{ valueText(patient.patientNumber) }}</el-descriptions-item>
           <el-descriptions-item label="住院号">{{ valueText(patient.admissionNumber) }}</el-descriptions-item>
           <el-descriptions-item label="床号">
-            <el-input v-model.trim="previewBedNo" placeholder="/" class="print-hide" />
-            <span class="print-only">{{ valueText(previewBedNo) }}</span>
+            <el-input v-model.trim="previewBedNo" placeholder="" class="print-hide" />
+            <span class="print-only">{{ previewBedNo || '' }}</span>
           </el-descriptions-item>
-          <el-descriptions-item label="电话">{{ valueText(patient.phone) }}</el-descriptions-item>
+          <el-descriptions-item label="是否独居">{{ baseValueText(previewBase.isAlone, dicts.isAlone) }}</el-descriptions-item>
           <el-descriptions-item label="家庭住址" :span="2">{{ valueText(patient.homeAddress) }}</el-descriptions-item>
         </el-descriptions>
 
@@ -381,6 +399,7 @@ const loading = ref(false);
 const patient = ref({});
 const assessmentOpen = ref(false);
 const assessmentLoading = ref(false);
+const assessmentVisit = ref({});
 const currentOutpatientId = ref(null);
 const tables = ref([]);
 const reportOpen = ref(false);
@@ -456,13 +475,13 @@ const previewCompareRows = computed(() => previewTables.value.filter((row) => ro
 const previewPhysicalRows = computed(() => {
   const sppb = previewDetails.value.sppb || {};
   return [
-    { leftName: '4米步速试验', leftResult: sppb.fourMeter || '手填', rightName: '3米来回试验', rightResult: '手填' },
-    { leftName: '5次起坐', leftResult: sppb.fiveRise || '手填', rightName: '并足站立', rightResult: sppb.feetTogether || '手填' },
-    { leftName: '串联站立', leftResult: sppb.tandem || '手填', rightName: '半串联站立', rightResult: sppb.semiTandem || '手填' },
-    { leftName: '握力（左）', leftResult: '手填', rightName: '握力（右）', rightResult: '手填' },
-    { leftName: '小腿围（左）', leftResult: '手填', rightName: '小腿围（右）', rightResult: '手填' },
-    { leftName: '腰围', leftResult: '手填', rightName: '臀围', rightResult: '手填' },
-    { leftName: '体力状况', leftResult: '手填', rightName: '', rightResult: '' },
+    { leftName: '4米步速试验', leftResult: sppb.fourMeter || '', rightName: '3米来回试验', rightResult: '' },
+    { leftName: '5次起坐', leftResult: sppb.fiveRise || '', rightName: '并足站立', rightResult: sppb.feetTogether || '' },
+    { leftName: '串联站立', leftResult: sppb.tandem || '', rightName: '半串联站立', rightResult: sppb.semiTandem || '' },
+    { leftName: '握力（左）', leftResult: '', rightName: '握力（右）', rightResult: '' },
+    { leftName: '小腿围（左）', leftResult: '', rightName: '小腿围（右）', rightResult: '' },
+    { leftName: '腰围', leftResult: '', rightName: '臀围', rightResult: '' },
+    { leftName: '体力状况', leftResult: '', rightName: '', rightResult: '' },
   ];
 });
 
@@ -488,7 +507,7 @@ function hasPreviousResult(item = {}) {
 function previewSlotResult(slot) {
   if (!slot) return '';
   if (slot.detail === 'nrs') return nrsDetailText(previewDetails.value.nrs);
-  if (slot.handwrite) return '手填';
+  if (slot.handwrite) return '';
   const row = previewTableById.value.get(Number(slot.tableId));
   if (!row || row.previousOnly) return '/';
   const scoreTextValue = Number(slot.tableId) === 113 ? nrsScoreText(row, previewDetails.value.nrs) : row.scoreText;
@@ -516,6 +535,7 @@ async function load() {
 
 function resetTransientState() {
   assessmentOpen.value = false;
+  assessmentVisit.value = {};
   reportOpen.value = false;
   baseOpen.value = false;
   previewOpen.value = false;
@@ -536,6 +556,7 @@ function resetTransientState() {
 }
 
 async function openAssessment(row) {
+  assessmentVisit.value = row || {};
   currentOutpatientId.value = row.id;
   currentAssessmentState.value = row.state;
   assessmentOpen.value = true;
@@ -873,6 +894,10 @@ function removeMedicine(index) {
 }
 
 function printPreview() {
+  window.print();
+}
+
+function printAssessmentResults() {
   window.print();
 }
 

@@ -71,13 +71,22 @@
           <el-descriptions-item label="年龄">{{ valueText(patient.age) }}</el-descriptions-item>
           <el-descriptions-item label="住院号">{{ valueText(patient.admissionNumber) }}</el-descriptions-item>
         </el-descriptions>
-        <el-table v-loading="assessmentLoading" :data="tables" stripe max-height="520">
+        <h3 class="report-section-title">评估量表</h3>
+        <el-table v-loading="assessmentLoading" :data="assessmentReportRows" border stripe max-height="520">
+          <el-table-column prop="leftName" label="量表名称" width="180" />
+          <el-table-column prop="leftResult" label="评估结果" min-width="260" class-name="pre-line-cell" />
+          <el-table-column prop="rightName" label="量表名称" width="180" />
+          <el-table-column prop="rightResult" label="评估结果" min-width="260" class-name="pre-line-cell" />
+        </el-table>
+
+        <h3 class="report-section-title print-hide">量表明细入口</h3>
+        <el-table v-loading="assessmentLoading" :data="tables" stripe max-height="260" class="print-hide">
           <el-table-column prop="tableName" label="量表名称" min-width="230" />
           <el-table-column prop="scoreText" label="本次得分" width="140" class-name="pre-line-cell" />
           <el-table-column prop="remarkText" label="本次结论" min-width="180" class-name="pre-line-cell" />
           <el-table-column prop="exScoreText" label="上次得分" width="140" class-name="pre-line-cell" />
           <el-table-column prop="exRemarkText" label="上次结论" min-width="160" class-name="pre-line-cell" />
-          <el-table-column label="操作" width="120" class-name="print-hide" label-class-name="print-hide">
+          <el-table-column label="操作" width="120">
             <template #default="{ row }">
               <el-button link type="primary" :disabled="row.previousOnly" @click="openReport(row)">
                 {{ row.previousOnly ? '本次未选' : '明细' }}
@@ -324,9 +333,10 @@ import {
 } from '../config/runtime.js';
 import { emptyMedicine, normalizeMsList } from '../utils/basePayload.js';
 import { verifyBaseAssociation } from '../utils/baseWritable.js';
-import { buildNrsPainDetails, buildSppbPhysicalDetails, nrsDetailText, nrsScoreText } from '../utils/reportDetails.js';
+import { buildNrsPainDetails, buildSppbPhysicalDetails } from '../utils/reportDetails.js';
 import { reportDisplayText } from '../utils/reportDisplay.js';
 import { buildQuestionPayload, isAssessmentSubmitted, isReportSubmitted, scoreText } from '../utils/reportPayload.js';
+import { buildReportSummaryRows } from '../utils/reportSummary.js';
 import { decideReportWritable } from '../utils/reportWritable.js';
 
 const props = defineProps({ id: { type: String, required: true } });
@@ -402,6 +412,7 @@ const assessmentLoading = ref(false);
 const assessmentVisit = ref({});
 const currentOutpatientId = ref(null);
 const tables = ref([]);
+const assessmentDetails = ref({ sppb: {}, nrs: {} });
 const reportOpen = ref(false);
 const reportLoading = ref(false);
 const reportSaving = ref(false);
@@ -444,33 +455,12 @@ const dicts = reactive({
 });
 const baseForm = reactive(defaultBaseForm());
 
-const REPORT_SUMMARY_LAYOUT = [
-  [{ label: 'Tinetti\n平衡', tableId: 13 }, { label: 'ADL\n(功能)', tableId: 101 }],
-  [{ label: 'Tinetti\n步态', tableId: 14 }, { label: 'IADL\n(生活)', tableId: 102 }],
-  [{ label: 'MMSE\n(认知)', tableId: 105 }, { label: 'SAS\n(焦虑)', tableId: 103 }],
-  [{ label: 'Mini Cog\n(认知)', handwrite: true }, { label: 'SDS\n(抑郁)', tableId: 104 }],
-  [{ label: 'NRS2002\n(营养)', handwrite: true }, { label: 'CAM\n(谵妄)', handwrite: true }],
-  [{ label: 'MNA-SF\n(营养)', tableId: 107 }, { label: 'AIS\n(睡眠)', tableId: 109 }],
-  [{ label: 'CFS-09\n(衰弱)', tableId: 112 }, { label: 'EAT-10\n(吞咽)', tableId: 111 }],
-  [{ label: 'FRIED\n(衰弱)', tableId: 117 }, { label: 'SARC-F\n(简易五项)', tableId: 108 }],
-  [{ label: 'Frail\n(衰弱)', tableId: 110 }, { label: '中医体质\n辨识', tableId: 116 }],
-  [{ label: 'FRA\n(跌倒)', tableId: 106 }, { label: 'SPPB', tableId: 114 }],
-  [{ label: 'NRS\n(疼痛)', tableId: 113 }, { label: '疼痛信息', detail: 'nrs' }],
-];
-
 const checks = computed(() => patient.value.checkList || []);
 const showTestAssessmentCreate = computed(
   () => allowSessionWriteIds && isWriteEnabled && hasPatientWriteId(props.id),
 );
-const previewTableById = computed(() => new Map(previewTables.value.map((row) => [Number(row.checkTableId), row])));
-const previewReportRows = computed(() =>
-  REPORT_SUMMARY_LAYOUT.map(([left, right]) => ({
-    leftName: left?.label || '',
-    leftResult: previewSlotResult(left),
-    rightName: right?.label || '',
-    rightResult: previewSlotResult(right),
-  })),
-);
+const assessmentReportRows = computed(() => buildReportSummaryRows(tables.value, assessmentDetails.value));
+const previewReportRows = computed(() => buildReportSummaryRows(previewTables.value, previewDetails.value));
 const previewCompareRows = computed(() => previewTables.value.filter((row) => row.hasCompare));
 const previewPhysicalRows = computed(() => {
   const sppb = previewDetails.value.sppb || {};
@@ -504,18 +494,6 @@ function hasPreviousResult(item = {}) {
   return (item.exScore !== null && item.exScore !== undefined) || (remark && remark !== '-' && remark !== '/');
 }
 
-function previewSlotResult(slot) {
-  if (!slot) return '';
-  if (slot.detail === 'nrs') return nrsDetailText(previewDetails.value.nrs);
-  if (slot.handwrite) return '';
-  const row = previewTableById.value.get(Number(slot.tableId));
-  if (!row || row.previousOnly) return '/';
-  const scoreTextValue = Number(slot.tableId) === 113 ? nrsScoreText(row, previewDetails.value.nrs) : row.scoreText;
-  const score = scoreTextValue && scoreTextValue !== '/' ? `得分：${scoreTextValue}` : '';
-  const remark = row.remarkText && row.remarkText !== '/' ? `结论：${row.remarkText}` : '';
-  return [score, remark].filter(Boolean).join('\n') || '/';
-}
-
 function baseValueText(value, options = []) {
   const matched = (options || []).find((item) => String(item.dictValue) === String(value));
   return matched ? matched.dictLabel : valueText(value);
@@ -542,6 +520,7 @@ function resetTransientState() {
   currentOutpatientId.value = null;
   currentAssessmentState.value = null;
   tables.value = [];
+  assessmentDetails.value = { sppb: {}, nrs: {} };
   reportRows.value = [];
   reportMeta.value = {};
   baseOutpatientId.value = null;
@@ -563,7 +542,9 @@ async function openAssessment(row) {
   assessmentLoading.value = true;
   try {
     const result = await getAssessmentTables(row.id);
-    tables.value = (result.list || []).filter((item) => Number(item.checkTableId) !== 115).map(mapTable);
+    const mappedTables = (result.list || []).filter((item) => Number(item.checkTableId) !== 115).map(mapTable);
+    tables.value = mappedTables;
+    assessmentDetails.value = await loadReportDetails(mappedTables);
   } catch (error) {
     ElMessage.error(error.message || '加载量表失败');
   } finally {
@@ -733,7 +714,7 @@ async function openCompositePreview(row) {
       .filter((item) => Number(item.checkTableId) !== 115)
       .map(mapTable);
     previewTables.value = mappedTables;
-    previewDetails.value = await loadPreviewReportDetails(mappedTables);
+    previewDetails.value = await loadReportDetails(mappedTables);
   } catch (error) {
     ElMessage.error(error.message || '加载总报告预览失败');
   } finally {
@@ -741,7 +722,7 @@ async function openCompositePreview(row) {
   }
 }
 
-async function loadPreviewReportDetails(mappedTables) {
+async function loadReportDetails(mappedTables) {
   const detail = { sppb: {}, nrs: {} };
   await Promise.all(
     [

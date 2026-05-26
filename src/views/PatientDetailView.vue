@@ -73,8 +73,8 @@
         </el-descriptions>
         <el-table v-loading="assessmentLoading" :data="tables" stripe max-height="520">
           <el-table-column prop="tableName" label="量表名称" min-width="230" />
-          <el-table-column prop="scoreText" label="得分" width="140" class-name="pre-line-cell" />
-          <el-table-column prop="remarkText" label="结论" min-width="180" class-name="pre-line-cell" />
+          <el-table-column prop="scoreText" label="本次得分" width="140" class-name="pre-line-cell" />
+          <el-table-column prop="remarkText" label="本次结论" min-width="180" class-name="pre-line-cell" />
           <el-table-column prop="exScoreText" label="上次得分" width="140" class-name="pre-line-cell" />
           <el-table-column prop="exRemarkText" label="上次结论" min-width="160" class-name="pre-line-cell" />
           <el-table-column label="操作" width="120" class-name="print-hide" label-class-name="print-hide">
